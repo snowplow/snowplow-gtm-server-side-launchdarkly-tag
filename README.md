@@ -1,4 +1,3 @@
-@@ -0,0 +1,95 @@
 # Snowplow LaunchDarkly Tag for Google Tag Manager Server-side
 
 [![early-release]][tracker-classification]
