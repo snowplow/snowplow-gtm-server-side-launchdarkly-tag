@@ -91,24 +91,6 @@ ___TEMPLATE_PARAMETERS___
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "SELECT",
-        "name": "metricValueDropDown",
-        "displayName": "Metric Value",
-        "macrosInSelect": false,
-        "selectItems": [
-          {
-            "value": "Something",
-            "displayValue": "Something"
-          },
-          {
-            "value": "Custom",
-            "displayValue": "Custom"
-          }
-        ],
-        "simpleValueType": true,
-        "help": "Pick from the GTM common object properties or select \"Custom\" for any property on the event."
-      },
-      {
         "type": "TEXT",
         "name": "metricValueCustom",
         "displayName": "Property for Metric Value",
@@ -119,13 +101,7 @@ ___TEMPLATE_PARAMETERS___
             "type": "NON_EMPTY"
           }
         ],
-        "enablingConditions": [
-          {
-            "paramName": "metricValueDropDown",
-            "paramValue": "Custom",
-            "type": "EQUALS"
-          }
-        ],
+        "enablingConditions": [],
         "alwaysInSummary": true
       }
     ],
@@ -139,30 +115,48 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
-    "name": "contextKeysMapping",
-    "displayName": "Context Key Mapping Rules",
+    "name": "userMapping",
+    "displayName": "User Options",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "SIMPLE_TABLE",
-        "name": "contextKeysMappingRules",
-        "displayName": "",
-        "simpleTableColumns": [
+        "type": "SELECT",
+        "name": "userValueDropDown",
+        "displayName": "User Value",
+        "macrosInSelect": false,
+        "selectItems": [
           {
-            "defaultValue": "",
-            "displayName": "Event Property Key",
-            "name": "key",
-            "type": "TEXT"
+            "value": "userId",
+            "displayValue": "Common User ID"
           },
           {
-            "defaultValue": "",
-            "displayName": "Context Key Mapped Key (optional)",
-            "name": "mappedKey",
-            "type": "TEXT"
+            "value": "custom",
+            "displayValue": "Custom"
           }
         ],
-        "alwaysInSummary": false,
-        "help": "Specify the Property Key from the GTM Event, and then key you could like to map it to or leave the mapped key blank to keep the same name. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). These keys will populate the Launch Darkly `contextKeys` object."
+        "simpleValueType": true,
+        "help": "Pick from the GTM common user properties or select \"Custom\" for any property on the event.",
+        "defaultValue": "userId"
+      },
+      {
+        "type": "TEXT",
+        "name": "userValueCustom",
+        "displayName": "Property for Metric Value",
+        "simpleValueType": true,
+        "help": "Specify the Property Key from the GTM Event. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). This key will populate the Launch Darkly `metricValue` object.",
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ],
+        "enablingConditions": [
+          {
+            "paramName": "userValueDropDown",
+            "paramValue": "custom",
+            "type": "EQUALS"
+          }
+        ],
+        "alwaysInSummary": true
       }
     ]
   },
@@ -173,29 +167,39 @@ ___TEMPLATE_PARAMETERS___
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "GROUP",
-        "name": "userIdGroup",
-        "displayName": "User Identifier",
-        "groupStyle": "ZIPPY_CLOSED",
-        "subParams": [
+        "type": "SELECT",
+        "name": "timeOption",
+        "displayName": "Launch Darkly event creation time",
+        "macrosInSelect": false,
+        "selectItems": [
           {
-            "type": "CHECKBOX",
-            "name": "defaultUserId",
-            "checkboxText": "Inherit Amplitude user_id from common event user_id",
-            "simpleValueType": true,
-            "defaultValue": true,
-            "help": "Untick this box to override the value for \u003cstrong\u003euser_id\u003c/strong\u003e in Amplitude event payload."
+            "value": "current",
+            "displayValue": "Set to current time"
           },
           {
+            "value": "eventProperty",
+            "displayValue": "Set from event"
+          }
+        ],
+        "simpleValueType": true,
+        "defaultValue": "current",
+        "help": "Allows you to set the creatoin time of the event from the current timestamp or from an event property (milliseconds since unix epoch).",
+        "subParams": [
+          {
             "type": "TEXT",
-            "name": "userId",
-            "displayName": "User ID Override",
+            "name": "timeProp",
+            "displayName": "Event property name",
             "simpleValueType": true,
-            "help": "Specify the value of the \u003cstrong\u003euser_id\u003c/strong\u003e property of the Amplitude payload.",
+            "help": "Specify the client event property to populate the event time (milliseconds since unix epoch).",
+            "valueValidators": [
+              {
+                "type": "NON_EMPTY"
+              }
+            ],
             "enablingConditions": [
               {
-                "paramName": "defaultUserId",
-                "paramValue": false,
+                "paramName": "timeOption",
+                "paramValue": "eventProperty",
                 "type": "EQUALS"
               }
             ]
@@ -251,15 +255,13 @@ const JSON = require('JSON');
 const log = require('logToConsole');
 const makeNumber = require('makeNumber');
 const makeString = require('makeString');
-const makeTableMap = require('makeTableMap');
 const Math = require('Math');
 const sendHttpRequest = require('sendHttpRequest');
 const sha256Sync = require('sha256Sync');
 
 // Constants
-const standardEndpoint = 'https://api2.amplitude.com/2/httpapi';
-const euEndpoint = 'https://api.eu.amplitude.com/2/httpapi';
-const tagName = 'Amplitude HTTP API V2';
+const standardEndpoint = 'https://events.launchdarkly.com';
+const tagName = 'Launch Darkly Metric Events';
 const spEnrichedPath = '/com.snowplowanalytics.snowplow/enriched';
 const spAtomicTstamps = [
   'x-sp-collector_tstamp',
@@ -269,13 +271,6 @@ const spAtomicTstamps = [
   'x-sp-dvce_sent_tstamp',
   'x-sp-etl_tstamp',
   'x-sp-refr_dvce_tstamp',
-];
-const mktToUtmMap = [
-  { key: 'x-sp-mkt_source', mappedKey: 'utm_source' },
-  { key: 'x-sp-mkt_medium', mappedKey: 'utm_medium' },
-  { key: 'x-sp-mkt_campaign', mappedKey: 'utm_campaign' },
-  { key: 'x-sp-mkt_term', mappedKey: 'utm_term' },
-  { key: 'x-sp-mkt_content', mappedKey: 'utm_content' },
 ];
 
 // Helpers
@@ -550,282 +545,6 @@ const cleanObject = (obj) => {
   return target;
 };
 
-const merge = (args) => {
-  let target = {};
-
-  const addToTarget = (obj) => {
-    for (let prop in obj) {
-      if (obj.hasOwnProperty(prop)) {
-        target[prop] = obj[prop];
-      }
-    }
-  };
-
-  for (let i = 0; i < args.length; i++) {
-    addToTarget(args[i]);
-  }
-
-  return target;
-};
-
-const getEventDataByKeys = (configProps) => {
-  const props = {};
-  configProps.forEach((p) => {
-    let eventProperty = getEventData(p.key);
-    if (eventProperty) {
-      props[p.mappedKey || p.key] = eventProperty;
-    }
-  });
-  return props;
-};
-
-const replaceAll = (str, substr, newSubstr) => {
-  let finished = false,
-    result = str;
-  while (!finished) {
-    const newStr = result.replace(substr, newSubstr);
-    if (result === newStr) {
-      finished = true;
-    }
-    result = newStr;
-  }
-  return result;
-};
-
-const isUpper = (value) => {
-  return value === value.toUpperCase() && value !== value.toLowerCase();
-};
-
-const toSnakeCase = (value) => {
-  let result = '';
-  let previousChar;
-  for (var i = 0; i < value.length; i++) {
-    let currentChar = value.charAt(i);
-    if (isUpper(currentChar) && i > 0 && previousChar !== '_') {
-      result = result + '_' + currentChar;
-    } else {
-      result = result + currentChar;
-    }
-    previousChar = currentChar;
-  }
-  return result;
-};
-
-const cleanPropertyName = (prop) => prop.replace('x-sp-', '');
-
-const extractFromArrayIfSingleElement = (arr, tagConfig) =>
-  arr.length === 1 && tagConfig.extractFromArray ? arr[0] : arr;
-
-/*
- * Parses a Snowplow schema to the expected major version format,
- *  also prefixed so as to match the contexts' output of the Snowplow Client.
- *
- * @param schema {string} - the input schema
- * @returns - the expected output client event property
- */
-const parseSchemaToMajorKeyValue = (schema) => {
-  if (schema.indexOf('x-sp-contexts_') === 0) return schema;
-  if (schema.indexOf('contexts_') === 0) return 'x-sp-' + schema;
-  if (schema.indexOf('iglu:') === 0) {
-    let fixed = replaceAll(
-      replaceAll(
-        schema.replace('iglu:', '').replace('jsonschema/', ''),
-        '.',
-        '_'
-      ),
-      '/',
-      '_'
-    );
-
-    for (let i = 0; i < 2; i++) {
-      fixed = fixed.substring(0, fixed.lastIndexOf('-'));
-    }
-    return 'x-sp-contexts_' + toSnakeCase(fixed).toLowerCase();
-  }
-  return schema;
-};
-
-/*
- * Returns whether a property name is a Snowplow self-describing event property.
- */
-const isSpSelfDescProp = (prop) => {
-  return prop.indexOf('x-sp-self_describing_event_') === 0;
-};
-
-/*
- * Returns whether a property name is a Snowplow context/entity property.
- */
-const isSpContextsProp = (prop) => {
-  return prop.indexOf('x-sp-contexts_') === 0;
-};
-
-/*
- * Given a list of entity references and an entity name,
- * returns the index of a matching reference.
- * Matching reference means whether the entity name starts with ref.
- *
- * @param entity {string} - the entity name to match
- * @param refsList {Array} - an array of strings
- */
-const getReferenceIdx = (entity, refsList) => {
-  for (let i = 0; i < refsList.length; i++) {
-    if (entity.indexOf(refsList[i]) === 0) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-/*
- * Filters out invalid rules to avoid unintended behavior.
- * (e.g. version control being ignored if version num is not included in name)
- * Assumes that a rule contains 'key' and 'version' properties.
- */
-const cleanRules = (rules) => {
-  return rules.filter((row) => {
-    if (row.version === 'control') {
-      // last char can't be null or empty string so fine for makeNumber
-      const lastCharAsNum = makeNumber(row.key.slice(-1));
-      if (!lastCharAsNum && lastCharAsNum !== 0) {
-        // was not a digit, so invalid rule
-        return false;
-      }
-      return true;
-    }
-    return true;
-  });
-};
-
-/*
- * Parses the entity exclusion rules from the tag configuration.
- */
-const parseEntityExclusionRules = (tagConfig) => {
-  const rules = tagConfig.entityExclusionRules;
-  if (rules) {
-    const validRules = cleanRules(rules);
-    const excludedEntities = validRules.map((row) => {
-      const entityRef = parseSchemaToMajorKeyValue(row.key);
-      const versionFreeRef = entityRef.slice(0, -2);
-      return {
-        ref: row.version === 'control' ? entityRef : versionFreeRef,
-        version: row.version,
-      };
-    });
-    return excludedEntities;
-  }
-  return [];
-};
-
-/*
- * Parses the entity inclusion rules from the tag configuration.
- */
-const parseEntityRules = (tagConfig) => {
-  const rules = tagConfig.entityMappingRules;
-  if (rules) {
-    const validRules = cleanRules(rules);
-    const parsedRules = validRules.map((row) => {
-      const parsedKey = parseSchemaToMajorKeyValue(row.key);
-      const versionFreeKey = parsedKey.slice(0, -2);
-      return {
-        ref: row.version === 'control' ? parsedKey : versionFreeKey,
-        parsedKey: parsedKey,
-        mappedKey: row.mappedKey || cleanPropertyName(parsedKey),
-        target: row.propertiesObjectToPopulate,
-        version: row.version,
-      };
-    });
-    return parsedRules;
-  }
-  return [];
-};
-
-/*
- * Given the inclusion rules and the excluded entity references,
- * returns the final entity mapping rules.
- */
-const finalizeEntityRules = (inclusionRules, excludedRefs) => {
-  const finalEntities = inclusionRules.filter((row) => {
-    const refIdx = getReferenceIdx(row.ref, excludedRefs);
-    return refIdx < 0;
-  });
-  return finalEntities;
-};
-
-const parseCustomEventAndEntities = (
-  evData,
-  tagConfig,
-  eventProperties,
-  userProperties
-) => {
-  const inclusionRules = parseEntityRules(tagConfig);
-  const exclusionRules = parseEntityExclusionRules(tagConfig);
-  const excludedRefs = exclusionRules.map((r) => r.ref);
-  const finalEntityRules = finalizeEntityRules(inclusionRules, excludedRefs);
-  const finalEntityRefs = finalEntityRules.map((r) => r.ref);
-
-  for (let prop in evData) {
-    if (evData.hasOwnProperty(prop)) {
-      const cleanPropName = cleanPropertyName(prop);
-
-      if (isSpSelfDescProp(prop) && tagConfig.includeSelfDescribingEvent) {
-        eventProperties[cleanPropName] = evData[prop];
-        continue;
-      }
-
-      if (isSpContextsProp(prop)) {
-        if (getReferenceIdx(prop, excludedRefs) >= 0) {
-          continue;
-        }
-
-        const ctxVal = extractFromArrayIfSingleElement(evData[prop], tagConfig);
-        const refIdx = getReferenceIdx(prop, finalEntityRefs);
-        if (refIdx >= 0) {
-          const rule = finalEntityRules[refIdx];
-          const target =
-            rule.target === 'event_properties' ? eventProperties : userProperties;
-          target[rule.mappedKey] = ctxVal;
-        } else {
-          if (tagConfig.includeEntities === 'none') {
-            continue;
-          }
-          // here includedEntities is 'all' and prop is not excluded
-          eventProperties[cleanPropName] = ctxVal;
-        }
-      }
-    }
-  }
-};
-
-/*
- * Initializes the user_properties of the Ampitude event
- * based on the User Property Rules of the tag configuration.
- *
- * @param evData {Object} - the client event object
- * @param tagConfig {Object} - the tag configuration
- * @returns - Object
- */
-const initUserData = (evData, tagConfig) => {
-  // include common user properties
-  const includeCommon = !!(
-    data.includeCommonUserProperties && eventData.user_data
-  );
-  const commonUserData = includeCommon ? eventData.user_data : {};
-
-  // map Snowplow mkt fields
-  const utmData = tagConfig.mktToUserUtm ? mktToUtmMap : [];
-
-  // additional user property mapping rules
-  const includeCustom = !!(
-    data.userMappingRules && data.userMappingRules.length > 0
-  );
-  const userMappingRules = includeCustom ? data.userMappingRules : [];
-
-  // additional rules take precedence
-  const additionalUserProps = utmData.concat(userMappingRules);
-
-  return merge([commonUserData, getEventDataByKeys(additionalUserProps)]);
-};
-
 /*
  * Returns the time property for Amplitude event
  * depending on time settings configured.
@@ -833,11 +552,9 @@ const initUserData = (evData, tagConfig) => {
  * @param tagConfig {Object} - the tag configuration object
  * @returns - unix timestamp or undefined
  */
-const getAmplitudeTime = (tagConfig) => {
-  const timeSetting = tagConfig.amplitudeTime;
+const getTimestamp = (tagConfig) => {
+  const timeSetting = tagConfig.timeOption;
   switch (timeSetting) {
-    case 'no':
-      return undefined;
     case 'current':
       return getTimestampMillis();
     case 'eventProperty':
@@ -858,25 +575,15 @@ const getAmplitudeTime = (tagConfig) => {
   }
 };
 
-/*
- * Returns the session_id (long - unix timestamp) for Amplitude event
- * from the firstEventTimestamp of the client_session context.
- *
- * @param evData {Object} - the client event object
- * @returns - unix timestamp or undefined
- */
-const getAmplitudeSession = (evData) => {
-  const clientSessionCtx =
-    evData['x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1'];
-  if (clientSessionCtx) {
-    const firstEventTime = clientSessionCtx[0].firstEventTimestamp;
-    return isoToUnixMillis(firstEventTime);
-  }
-  return undefined;
-};
-
 // Main
 const eventData = getAllEventData();
+let insertId =
+  eventData['x-sp-event_id'] ||
+  sha256Sync(
+    eventData.event_name +
+      eventData.client_id +
+      makeString(getTimestampMillis())
+  );
 
 const loggingEnabled = determineIsLoggingEnabled(data.logType);
 const traceIdHeader = loggingEnabled ? getRequestHeader('trace-id') : undefined;
@@ -885,121 +592,38 @@ const stdLogInfo = {
   traceId: traceIdHeader,
   eventName: eventData.event_name,
 };
-const url = data.useEUServer ? euEndpoint : standardEndpoint;
+const url = standardEndpoint + '/import/environments/' + data.clientSideId + '/metrics';
 const requestHeaders = {
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json', 
+    'X-LaunchDarkly-Event-Schema': 4, 
+    'LD-API-Version': 'beta', 
+    'X-LaunchDarkly-Payload-ID': insertId,
+    'User-Agent': 'MetricImport-' + data.companyName + '-int/1'
+  },
   method: 'POST',
   timeout: 5000,
 };
 
-let userProperties = initUserData(eventData, data);
-
-let eventProperties = {};
-if (data.includeCommonEventProperties) {
-  eventProperties.page_location = eventData.page_location;
-  eventProperties.page_encoding = eventData.page_encoding;
-  eventProperties.page_referrer = eventData.page_referrer;
-  eventProperties.page_title = eventData.page_title;
-  eventProperties.screen_resolution = eventData.screen_resolution;
-  eventProperties.viewport_size = eventData.viewport_size;
-}
-
-if (data.eventMappingRules && data.eventMappingRules.length > 0) {
-  eventProperties = merge([
-    eventProperties,
-    getEventDataByKeys(data.eventMappingRules),
-  ]);
-}
-
-parseCustomEventAndEntities(eventData, data, eventProperties, userProperties);
-
-// additional event properties
-if (data.additionalEventProperties && data.additionalEventProperties.length > 0) {
-  eventProperties = merge([
-    eventProperties,
-    makeTableMap(data.additionalEventProperties, 'key', 'value'),
-  ]);
-}
-
-// additional user properties
-if (data.additionalUserProperties && data.additionalUserProperties.length > 0) {
-  userProperties = merge([
-    userProperties,
-    makeTableMap(data.additionalUserProperties, 'key', 'value'),
-  ]);
-}
-
-let insertId =
-  eventData['x-sp-event_id'] ||
-  sha256Sync(
-    eventData.event_name +
-      eventData.client_id +
-      makeString(getTimestampMillis())
-  );
-let platform = eventData['x-sp-platform'] || data.fallbackPlatform;
-
-let amplitudeEvent = {
-  event_type: eventData.event_name,
-  device_id: data.defaultDeviceId ? eventData.client_id : data.deviceId,
-  user_id: data.defaultUserId ? (eventData.user_id || undefined) : data.userId,
-  ip: data.forwardIp ? eventData.ip_override : undefined,
-  time: getAmplitudeTime(data),
-  session_id: getAmplitudeSession(eventData),
-  event_properties: eventProperties,
-  user_properties: userProperties,
-  platform: platform,
-  country: eventData['x-sp-geo_country'],
-  region: eventData['x-sp-geo_region'],
-  city: eventData['x-sp-geo_city'],
-  location_lat: eventData['x-sp-geo_latitude'],
-  location_lng: eventData['x-sp-geo_longitude'],
-  carrier: eventData['x-sp-ip_organization'],
-  language: eventData.language,
-  insert_id: insertId,
+let ldEvent = {
+  kind: 'custom',
+  key: data.eventName,
+  creationDate: getTimestamp(),
+  contextKeys: { user: data.userValueDropDown === 'userId' ? eventData.userId : eventData[data.userValueCustom] }
 };
 
-if (eventData['x-sp-contexts_nl_basjes_yauaa_context_1']) {
-  const context = eventData['x-sp-contexts_nl_basjes_yauaa_context_1'][0];
-  amplitudeEvent.os_name = context.operatingSystemName;
-  amplitudeEvent.os_version = context.operatingSystemVersion;
-  amplitudeEvent.device_brand = context.deviceBrand;
-  amplitudeEvent.device_model = context.deviceName;
+if (data.metricType === 'metric') {
+  ldEvent.metricValue = makeNumber(eventData[data.metricValueCustom]);
 }
 
-if (
-  eventData['x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1']
-) {
-  const context =
-    eventData[
-      'x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1'
-    ][0];
-  amplitudeEvent.os_name = context.osType;
-  amplitudeEvent.os_version = context.osVersion;
-  amplitudeEvent.device_manufacturer = context.deviceManufacturer;
-  amplitudeEvent.device_model = context.deviceModel;
-  amplitudeEvent.carrier = context.carrier;
-  amplitudeEvent.idfa = context.appleIdfa;
-  amplitudeEvent.idfv = context.appleIdfv;
-  amplitudeEvent.adid = context.androidIdfa;
-}
-
-const amplitudeEvents = [cleanObject(amplitudeEvent)];
-const authedAmplitudeBody = {
-  api_key: data.apiKey,
-  events: amplitudeEvents,
-};
-// to redact api_key from logs
-const redactedAmplitudeBody = {
-  api_key: 'redacted',
-  events: amplitudeEvents,
-};
+const ldRequest = [cleanObject(ldEvent)];
 
 if (loggingEnabled) {
   doLogging('Request', stdLogInfo, {
     requestMethod: requestHeaders.method,
     requestUrl: url,
     requestHeaders: requestHeaders.headers,
-    requestBody: redactedAmplitudeBody,
+    requestBody: ldRequest,
   });
 }
 
@@ -1021,7 +645,7 @@ sendHttpRequest(
     }
   },
   requestHeaders,
-  JSON.stringify(authedAmplitudeBody)
+  JSON.stringify(ldRequest)
 );
 
 
@@ -1195,64 +819,36 @@ ___SERVER_PERMISSIONS___
 ___TESTS___
 
 scenarios:
-- name: Test Page View
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
+- name: Test Conversion
+  code: |-
     const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: true,
-      extractFromArray: true,
-      includeEntities: 'all',
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
+      eventName: 'Example',
+      metricType: 'conversion',
+      clientSideId: '1234',
+      companyName: 'Snowplow',
+      metricValueDropDown: 'custom',
+      metricValueCustom: 'x-sp-event_id',
+      userValueDropDown: 'custom',
+      userValueCustom: 'x-sp-event_id',
+      timeOption: 'eventProperty',
+      timeProp: 'x-sp-dvce_created_tstamp',
+      logType: 'no'
     };
 
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            page_referrer: mockClientEvent.page_referrer,
-            page_title: mockClientEvent.page_title,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            contexts_com_snowplowanalytics_snowplow_web_page_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_web_page_1'
-              ],
-            contexts_org_w3_PerformanceTiming_1:
-              mockClientEvent['x-sp-contexts_org_w3_PerformanceTiming_1'],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-          },
-          language: mockClientEvent.language,
-          platform: mockData.fallbackPlatform,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
+    const expectedBody = [{
+      kind: 'custom',
+      key: 'Example',
+      creationDate: 1658567928426,
+      contextKeys: { user: 'c2084e30-5e4f-4d9c-86b2-e0bc3781509a' }
+    }];
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
 
     // mocks
-    mock('getAllEventData', mockClientEvent);
+    mock('getAllEventData', mockEventObjectSelfDesc);
     mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
+      return getFromPath(x, mockEventObjectSelfDesc);
     });
     mock('sendHttpRequest', function () {
       argUrl = arguments[0];
@@ -1282,7 +878,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
+    assertThat(argUrl).isStrictlyEqualTo('https://events.launchdarkly.com/import/environments/1234/metrics');
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -1295,1524 +891,57 @@ scenarios:
     assertThat(body).isEqualTo(expectedBody);
 
     assertApi('logToConsole').wasNotCalled();
-- name: Test Self-Describing include option
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
+- name: Test Numeric Metric
+  code: |-
     const mockData = {
-      apiKey: '12345',
-      useEUServer: true,
-      includeSelfDescribingEvent: true,
-      extractFromArray: true,
-      includeEntities: 'all',
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: false, // test also device_id override
-      deviceId: 'testDeviceIdValue',
-      defaultUserId: false,   // test also user_id override
-      userId: 'testUserIdValue',
-      logType: 'debug',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: 'testDeviceIdValue',
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            self_describing_event_com_snowplowanalytics_snowplow_media_player_event_1:
-              {
-                type: 'play',
-              },
-            contexts_com_youtube_youtube_1:
-              mockClientEvent['x-sp-contexts_com_youtube_youtube_1'][0],
-            contexts_com_snowplowanalytics_snowplow_web_page_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_web_page_1'
-              ][0],
-            contexts_com_snowplowanalytics_snowplow_media_player_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ][0],
-            'contexts_com_google_tag-manager_server-side_user_data_1':
-              mockClientEvent[
-                'x-sp-contexts_com_google_tag-manager_server-side_user_data_1'
-              ][0],
-            contexts_com_snowplowanalytics_snowplow_client_session_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1'
-              ][0],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: 'testUserIdValue',
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      // test also logType: 'debug' does not log on prod
-      let containerVersion = {
-        debugMode: false,
-        previewMode: false,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api.eu.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test contexts no extract
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: false,
-      includeEntities: 'all',
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      amplitudeTime: 'no',
-      // test also logType default is debug
-      // logType undefined
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            contexts_com_youtube_youtube_1:
-              mockClientEvent['x-sp-contexts_com_youtube_youtube_1'],
-            contexts_com_snowplowanalytics_snowplow_web_page_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_web_page_1'
-              ],
-            contexts_com_snowplowanalytics_snowplow_media_player_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ],
-            'contexts_com_google_tag-manager_server-side_user_data_1':
-              mockClientEvent[
-                'x-sp-contexts_com_google_tag-manager_server-side_user_data_1'
-              ],
-            contexts_com_snowplowanalytics_snowplow_client_session_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1'
-              ],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      // test also default logType is debug - no log on prod
-      let containerVersion = {
-        debugMode: false,
-        previewMode: false,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test context rules - include all - edit
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'all',
-      entityMappingRules: [
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1',
-          mappedKey: 'mobile_context',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'control',
-        },
-        {
-          key: 'iglu:com.youtube/youtube/jsonschema/1-0-0',
-          mappedKey: 'youtube',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control',
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_1',
-          mappedKey: 'media_player',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control',
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data_1',
-          mappedKey: 'user_data_by_rule',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'control',
-        },
-      ],
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: false,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            youtube: mockClientEvent['x-sp-contexts_com_youtube_youtube_1'][0],
-            media_player:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ][0],
-            contexts_com_snowplowanalytics_snowplow_web_page_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_web_page_1'
-              ][0],
-            contexts_com_snowplowanalytics_snowplow_client_session_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1'
-              ][0],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-            user_data_by_rule:
-              mockClientEvent[
-                'x-sp-contexts_com_google_tag-manager_server-side_user_data_1'
-              ][0],
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test context rules - include none - version control
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      entityMappingRules: [
-        {
-          key: 'iglu:com.youtube/youtube/jsonschema/1-5-0',
-          mappedKey: 'youtube',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'free',
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_1',
-          mappedKey: 'media_player',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control',
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data_5',
-          mappedKey: 'user_data',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'free',
-        },
-      ],
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: false,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'always',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            youtube: mockClientEvent['x-sp-contexts_com_youtube_youtube_1'][0],
-            media_player:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ][0],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-            user_data:
-              mockClientEvent[
-                'x-sp-contexts_com_google_tag-manager_server-side_user_data_1'
-              ][0],
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      // test also logType: 'always' logs in debug
-      // plus debugMode || previewMode
-      let containerVersion = {
-        debugMode: true,
-        previewMode: false,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasCalled();
-- name: Test context rules - exclude - version control
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'all',
-      entityMappingRules: [
-        {
-          key: 'iglu:com.youtube/youtube/jsonschema/1-0-0',
-          mappedKey: 'youtube',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control',
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_1',
-          mappedKey: 'media_player',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control',
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data_1',
-          mappedKey: 'user_data',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'control',
-        },
-      ],
-      entityExclusionRules: [
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_web_page_1',
-          version: 'control',
-        },
-        {
-          key: 'iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2',
-          version: 'control',
-        },
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1',
-          version: 'control',
-        },
-      ],
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: false,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            youtube: mockClientEvent['x-sp-contexts_com_youtube_youtube_1'][0],
-            media_player:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ][0],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-            user_data:
-              mockClientEvent[
-                'x-sp-contexts_com_google_tag-manager_server-side_user_data_1'
-              ][0],
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test context rules - versioning cases 1
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'all',
-      entityMappingRules: [
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1',
-          mappedKey: 'client_session_context',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control', // control include
-        },
-        {
-          key: 'iglu:com.youtube/youtube/jsonschema/1-0-0',
-          mappedKey: 'youtube',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control', // control include
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_1',
-          mappedKey: 'media_player',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'free', // free include
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data',
-          mappedKey: 'user_data',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'free', // free include
-        },
-      ],
-      entityExclusionRules: [
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_web_page_1',
-          version: 'control',
-        },
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1',
-          version: 'control',
-        },
-        // below we exclude entities also included
-        {
-          key: 'iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2',
-          version: 'control', // control exclude
-        },
-        {
-          key: 'contexts_com_youtube_youtube_1',
-          version: 'free', // free exclude
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_1',
-          version: 'control', // control exclude
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data',
-          version: 'free', // free exclude
-        },
-      ],
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: false,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test context rules - versioning cases 2
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: false,
-      includeEntities: 'all',
-      entityMappingRules: [
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_2',
-          mappedKey: 'client_session_context',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control', // control include
-        },
-        {
-          key: 'iglu:com.youtube/youtube/jsonschema/2-0-0',
-          mappedKey: 'youtube',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'control', // control include
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_2',
-          mappedKey: 'media_player',
-          propertiesObjectToPopulate: 'event_properties',
-          version: 'free', // free include
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data_2',
-          mappedKey: 'user_data',
-          propertiesObjectToPopulate: 'user_properties',
-          version: 'free', // free include
-        },
-      ],
-      entityExclusionRules: [
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_web_page_1',
-          version: 'control',
-        },
-        {
-          key: 'x-sp-contexts_com_snowplowanalytics_snowplow_mobile_context_1',
-          version: 'control',
-        },
-        // below we exclude entities also included
-        {
-          key: 'iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/2-0-2',
-          version: 'control', // control exclude
-        },
-        {
-          key: 'contexts_com_youtube_youtube_2',
-          version: 'free', // free exclude
-        },
-        {
-          key: 'contexts_com_snowplowanalytics_snowplow_media_player_2',
-          version: 'control', // control exclude
-        },
-        {
-          key: 'contexts_com_google_tag-manager_server-side_user_data_2',
-          version: 'free', // free exclude
-        },
-      ],
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: false,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            page_location: mockClientEvent.page_location,
-            page_encoding: mockClientEvent.page_encoding,
-            screen_resolution: mockClientEvent.screen_resolution,
-            viewport_size: mockClientEvent.viewport_size,
-            media_player:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1'
-              ],
-            contexts_com_snowplowanalytics_snowplow_client_session_1:
-              mockClientEvent[
-                'x-sp-contexts_com_snowplowanalytics_snowplow_client_session_1'
-              ],
-          },
-          user_properties: {
-            email_address: mockClientEvent.user_data.email_address,
-          },
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasNotCalled();
-- name: Test additional event mapping options
-  code: |
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      eventMappingRules: [
-        {
-          key: 'x-sp-self_describing_event_com_snowplowanalytics_snowplow_media_player_event_1.type',
-          mappedKey: 'media_event_type',
-        },
-        {
-          key: 'x-sp-tp2.tv',
-          mappedKey: 'tracker',
-        },
-      ],
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      userMappingRules: [
-        {
-          key: 'user_data.email_address',
-          mappedKey: 'email',
-        },
-      ],
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'always',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          event_properties: {
-            media_event_type: 'play',
-            tracker: mockClientEvent['x-sp-tp2'].tv,
-          },
-          user_properties: {
-            email: mockClientEvent.user_data.email_address,
-          },
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-          language: mockClientEvent.language,
-          platform: mockClientEvent['x-sp-platform'],
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      // test also logType: 'always' logs in prod
-      let containerVersion = {
-        debugMode: false,
-        previewMode: false,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code.a
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo('https://api2.amplitude.com/2/httpapi');
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    assertApi('logToConsole').wasCalled();
-- name: Test logs - Request and Response
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'debug',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          user_id: mockClientEvent.user_id,
-          event_properties: {},
-          user_properties: {},
-          platform: mockData.fallbackPlatform,
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('getRequestHeader', function (key) {
-      // only interested for trace-id
-      const headers = {
-        'trace-id': 'someTestTraceId',
-      };
-      // naive
-      return headers[key];
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-
-      // mock response
-      const respStatusCode = 200;
-      const respHeaders = { foo: 'bar' };
-      const respBody = 'ok';
-
-      // and call the callback with mock response
-      argCallback(respStatusCode, respHeaders, respBody);
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    const expectedUrl = 'https://api2.amplitude.com/2/httpapi';
-    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-
-    const expectedRequestLog = json.stringify({
-      Name: 'Amplitude HTTP API V2',
-      Type: 'Request',
-      TraceId: 'someTestTraceId',
-      EventName: 'page_view',
-      RequestMethod: 'POST',
-      RequestUrl: expectedUrl,
-      RequestHeaders: { 'Content-Type': 'application/json' },
-      RequestBody: {
-        api_key: 'redacted',
-        events: expectedBody.events,
-      },
-    });
-
-    const expectedResponseLog = json.stringify({
-      Name: 'Amplitude HTTP API V2',
-      Type: 'Response',
-      TraceId: 'someTestTraceId',
-      EventName: 'page_view',
-      ResponseStatusCode: 200,
-      ResponseHeaders: { foo: 'bar' },
-      ResponseBody: 'ok',
-    });
-
-    assertApi('logToConsole').wasCalled();
-    assertApi('logToConsole').wasCalledWith(expectedRequestLog);
-    assertApi('logToConsole').wasCalledWith(expectedResponseLog);
-- name: Test logs - containerVersion undefined
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: true,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: true,
-      includeCommonUserProperties: true,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'debug',
-    };
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      return true;
-    });
-    mock('getContainerVersion', function () {
-      return undefined;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    assertApi('logToConsole').wasNotCalled();
-- name: Test Amplitude time - current
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'current',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-    const mockTimestamp = 1658558068123;
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          time: mockTimestamp,
-          event_properties: {},
-          user_properties: {},
-          platform: mockData.fallbackPlatform,
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('getTimestampMillis', mockTimestamp);
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-- name: Test Amplitude time - prop not exists
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'eventProperty',
-      timeProp: 'propDoesNotExist',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          // no time
-          event_properties: {},
-          user_properties: {},
-          platform: mockData.fallbackPlatform,
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-- name: Test Amplitude time - prop
-  code: |
-    const makeNum = require('makeNumber');
-
-    const mockClientEvent = mockEventObjectSelfDesc;
-    const firstEvTimeUnixMillis = 1658567284451; // '2022-07-23T09:08:04.451Z'
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'eventProperty',
+      eventName: 'Example',
+      metricType: 'metric',
+      clientSideId: '1234',
+      companyName: 'Snowplow',
+      metricValueDropDown: 'custom',
+      metricValueCustom: 'x-sp-br_viewwidth',
+      userValueDropDown: 'custom',
+      userValueCustom: 'x-sp-event_id',
+      timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_created_tstamp',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
+      logType: 'no'
     };
-    // raw Snowplow events have unix timestamps
-    const tp2MockRequestPath = '/com.snowplowanaytics.snowplow/tp2';
 
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          session_id: firstEvTimeUnixMillis,
-          time: makeNum(mockClientEvent['x-sp-dvce_created_tstamp']),
-          event_properties: {},
-          user_properties: {},
-          platform: mockClientEvent['x-sp-platform'],
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
+    const expectedBody = [{
+      kind: 'custom',
+      key: 'Example',
+      creationDate: 1658567928426,
+      metricValue: 1044,
+      contextKeys: { user: 'c2084e30-5e4f-4d9c-86b2-e0bc3781509a' }
+    }];
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
 
     // mocks
-    mock('getAllEventData', mockClientEvent);
+    mock('getAllEventData', mockEventObjectSelfDesc);
     mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
+      return getFromPath(x, mockEventObjectSelfDesc);
     });
     mock('sendHttpRequest', function () {
       argUrl = arguments[0];
       argCallback = arguments[1];
       argOptions = arguments[2];
       argBody = arguments[3];
-    });
-    mock('getRequestPath', tp2MockRequestPath);
 
-    // Call runCode to run the template's code
-    runCode(mockData);
+      // mock response
+      const respStatusCode = 200;
+      const respHeaders = { foo: 'bar' };
+      const respBody = 'ok';
 
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-- name: Test Amplitude time - isoToUnix
-  code: |
-    const mockClientEvent = mockEventObjectEnriched;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: false,
-      forwardIp: true,
-      fallbackPlatform: 'srv',
-      amplitudeTime: 'eventProperty',
-      timeProp: 'x-sp-collector_tstamp',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'no',
-    };
-    // raw Snowplow events have unix timestamps
-    const enrichedMockRequestPath = '/com.snowplowanalytics.snowplow/enriched';
-
-    // for iso '2019-05-10T14:40:35.972Z'
-    const unixFromIso = 1557499235972;
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          time: unixFromIso,
-          os_name:
-            mockClientEvent['x-sp-contexts_nl_basjes_yauaa_context_1'][0]
-              .operatingSystemName,
-          os_version:
-            mockClientEvent['x-sp-contexts_nl_basjes_yauaa_context_1'][0]
-              .operatingSystemVersion,
-          device_brand:
-            mockClientEvent['x-sp-contexts_nl_basjes_yauaa_context_1'][0]
-              .deviceBrand,
-          device_model:
-            mockClientEvent['x-sp-contexts_nl_basjes_yauaa_context_1'][0]
-              .deviceName,
-          event_properties: {},
-          user_properties: {},
-          platform: mockClientEvent['x-sp-platform'],
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-    });
-    mock('getRequestPath', enrichedMockRequestPath);
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
-- name: Test mkt fields mapping
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: true,
-      userMappingRules: [
-        {
-          key: 'language',
-          mappedKey: 'lang',
-        },
-      ],
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'debug',
-    };
-
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          event_properties: {},
-          user_properties: {
-            lang: mockClientEvent.language,
-            utm_source: mockClientEvent['x-sp-mkt_source'],
-            utm_medium: mockClientEvent['x-sp-mkt_medium'],
-            utm_campaign: mockClientEvent['x-sp-mkt_campaign'],
-            utm_term: mockClientEvent['x-sp-mkt_term'],
-            utm_content: mockClientEvent['x-sp-mkt_content'],
-          },
-          platform: mockData.fallbackPlatform,
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
+      // and call the callback with mock response
+      argCallback(respStatusCode, respHeaders, respBody);
     });
     mock('getContainerVersion', function () {
+      // Test also logType: 'no' does not log on prod
       let containerVersion = {
-        debugMode: true,
-        previewMode: true,
+        debugMode: false,
+        previewMode: false,
       };
       return containerVersion;
     });
@@ -2822,8 +951,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    const expectedUrl = 'https://api2.amplitude.com/2/httpapi';
-    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
+    assertThat(argUrl).isStrictlyEqualTo('https://events.launchdarkly.com/import/environments/1234/metrics');
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -2832,106 +960,10 @@ scenarios:
     );
 
     const body = json.parse(argBody);
+    //logToConsole(body);
     assertThat(body).isEqualTo(expectedBody);
-- name: Test mapping precedence and additional props
-  code: |
-    const mockClientEvent = mockEventObjectPageView;
-    const mockData = {
-      apiKey: '12345',
-      useEUServer: false,
-      includeSelfDescribingEvent: false,
-      extractFromArray: true,
-      includeEntities: 'none',
-      includeCommonEventProperties: false,
-      includeCommonUserProperties: false,
-      mktToUserUtm: true,
-      userMappingRules: [
-        {
-          key: 'language',
-          mappedKey: 'utm_term',
-        },
-      ],
-      additionalEventProperties: [
-        { key: 'test_event_prop_a', value: 'foo_a' },
-        { key: 'test_event_prop_b', value: 'foo_b' },
-      ],
-      additionalUserProperties: [
-        { key: 'test_user_prop_a', value: 'bar_a' },
-        { key: 'test_user_prop_b', value: 'bar_b' },
-      ],
-      forwardIp: true,
-      fallbackPlatform: 'web',
-      amplitudeTime: 'no',
-      defaultDeviceId: true,
-      defaultUserId: true,
-      logType: 'debug',
-    };
 
-    const expectedBody = {
-      api_key: mockData.apiKey,
-      events: [
-        {
-          event_type: mockClientEvent.event_name,
-          device_id: mockClientEvent.client_id,
-          event_properties: {
-            test_event_prop_a: 'foo_a',
-            test_event_prop_b: 'foo_b',
-          },
-          user_properties: {
-            utm_source: mockClientEvent['x-sp-mkt_source'],
-            utm_medium: mockClientEvent['x-sp-mkt_medium'],
-            utm_campaign: mockClientEvent['x-sp-mkt_campaign'],
-            utm_term: mockClientEvent.language,
-            utm_content: mockClientEvent['x-sp-mkt_content'],
-            test_user_prop_a: 'bar_a',
-            test_user_prop_b: 'bar_b',
-          },
-          platform: mockData.fallbackPlatform,
-          language: mockClientEvent.language,
-          insert_id: mockClientEvent['x-sp-event_id'],
-          user_id: mockClientEvent.user_id,
-        },
-      ],
-    };
-
-    // to assert on
-    let argUrl, argCallback, argOptions, argBody;
-
-    // mocks
-    mock('getAllEventData', mockClientEvent);
-    mock('getEventData', function (x) {
-      return getFromPath(x, mockClientEvent);
-    });
-    mock('sendHttpRequest', function () {
-      argUrl = arguments[0];
-      argCallback = arguments[1];
-      argOptions = arguments[2];
-      argBody = arguments[3];
-    });
-    mock('getContainerVersion', function () {
-      let containerVersion = {
-        debugMode: true,
-        previewMode: true,
-      };
-      return containerVersion;
-    });
-
-    // Call runCode to run the template's code
-    runCode(mockData);
-
-    // Assert
-    assertApi('sendHttpRequest').wasCalled();
-    const expectedUrl = 'https://api2.amplitude.com/2/httpapi';
-    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
-
-    assertThat(argOptions.method).isStrictlyEqualTo('POST');
-    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
-    assertThat(argOptions.headers['Content-Type']).isStrictlyEqualTo(
-      'application/json'
-    );
-
-    const body = json.parse(argBody);
-    assertThat(body).isEqualTo(expectedBody);
+    assertApi('logToConsole').wasNotCalled();
 setup: |-
   const json = require('JSON');
   const logToConsole = require('logToConsole');
