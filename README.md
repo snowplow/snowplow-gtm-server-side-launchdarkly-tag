@@ -12,7 +12,7 @@
 
 A Google Tag Manager Server-side LaunchDarkly Tag template for sending events from the Snowplow Client (and other GTM SS Clients) to LaunchDarkly.
 
-This Tag allows you to forward events in your Google Tag Manager Server container to LaunchDarkly.
+This Tag allows you to forward events in your Google Tag Manager Server container to LaunchDarkly using its [metric import REST API][launchdarkly-metric-import].
 
 **Works best with the [Snowplow Client][snowplow-client].**
 
@@ -90,3 +90,4 @@ limitations under the License.
 [snowplow-client]: https://github.com/snowplow/snowplow-gtm-server-side-client/
 [javascript-tracker]: https://github.com/snowplow/snowplow-javascript-tracker
 [gtm-event-docs]: https://developers.google.com/tag-manager/serverside/common-event-data
+[launchdarkly-metric-import]: https://docs.launchdarkly.com/home/creating-experiments/import-metric-events
