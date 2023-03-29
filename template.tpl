@@ -219,6 +219,22 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
+    "name": "versionGroup",
+    "displayName": "Versioning",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
+      {
+        "type": "TEXT",
+        "name": "version",
+        "displayName": "Version",
+        "simpleValueType": true,
+        "help": "Specify the version string to be used in the User-Agent header. This will help identify the source of traffic in LaunchDarkly and debug issues. If a string value is not provided, the default value of \"1\" will be used instead.",
+        "valueHint": "{{Container Version}}"
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
     "name": "logsGroup",
     "displayName": "Logs Settings",
     "groupStyle": "ZIPPY_CLOSED",
@@ -260,6 +276,7 @@ const getEventData = require('getEventData');
 const getRequestHeader = require('getRequestHeader');
 const getRequestPath = require('getRequestPath');
 const getTimestampMillis = require('getTimestampMillis');
+const getType = require('getType');
 const JSON = require('JSON');
 const log = require('logToConsole');
 const makeNumber = require('makeNumber');
@@ -584,6 +601,15 @@ const getTimestamp = (tagConfig) => {
   }
 };
 
+const getVersion = (tagConfig) => {
+  const fallbackVersion = '1';
+  const version = tagConfig.version;
+  if (getType(version) === 'string' && version) {
+    return version;
+  }
+  return fallbackVersion;
+};
+
 // Main
 const eventData = getAllEventData();
 const insertId =
@@ -607,7 +633,7 @@ const url =
 // Note on version by LaunchDarkly docs: can be any format,
 // but you should update it if you make major changes to your implementation.
 // For now we hardcode it to '1'.
-const version = '1';
+const version = getVersion(data);
 const requestOptions = {
   headers: {
     'Content-Type': 'application/json',
@@ -844,6 +870,7 @@ scenarios:
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_created_tstamp',
+      version: '123',
       logType: 'no',
     };
 
@@ -863,7 +890,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-Snowplow-int/1',
+      'User-Agent': 'MetricImport-Snowplow-int/123',
     };
 
     // to assert on
@@ -927,6 +954,7 @@ scenarios:
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_created_tstamp',
+      version: '', // test also version not provided / evaluating to empty string
       logType: 'debug',
     };
 
@@ -1009,6 +1037,7 @@ scenarios:
       userValueDropDown: 'userId',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_sent_tstamp',
+      version: 90, // test also version provided not a string
       logType: 'no',
     };
 
@@ -1095,6 +1124,7 @@ scenarios:
       userValueCustom:
         'x-sp-contexts_com_google_tag-manager_server-side_user_data_1.0.email_address',
       timeOption: 'current',
+      version: '123',
       logType: 'debug',
     };
 
@@ -1121,7 +1151,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-acme-int/1',
+      'User-Agent': 'MetricImport-acme-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/1234/metrics';
@@ -1206,6 +1236,7 @@ scenarios:
       userValueDropDown: 'userId',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-collector_tstamp',
+      version: '123',
       logType: 'always',
     };
 
@@ -1233,7 +1264,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-acme-int/1',
+      'User-Agent': 'MetricImport-acme-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/1234/metrics';
@@ -1316,6 +1347,7 @@ scenarios:
       userValueDropDown: 'custom',
       userValueCustom: 'client_id',
       timeOption: 'current',
+      version: '123',
       logType: 'always',
     };
 
@@ -1339,7 +1371,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockSha256,
-      'User-Agent': 'MetricImport-testAcme-int/1',
+      'User-Agent': 'MetricImport-testAcme-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/abcd/metrics';
@@ -1414,7 +1446,7 @@ scenarios:
     assertApi('logToConsole').wasCalled();
     assertApi('logToConsole').wasCalledWith(expectedRequestLog);
     assertApi('logToConsole').wasCalledWith(expectedResponseLog);
-setup: |
+setup: |-
   const json = require('JSON');
   const logToConsole = require('logToConsole');
   const getTypeOf = require('getType');
