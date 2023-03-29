@@ -587,6 +587,35 @@ const cleanObject = (obj) => {
 };
 
 /*
+ * A safer replacement to makeNumber.
+ * It will return a number only if:
+ *  - the input is a number
+ *  - the input is a string that can be parsed as a number
+ * In all other cases returns undefined.
+ *
+ * @param x - any argument
+ * @returns - a number or undefined
+ */
+const safeMakeNumber = (x) => {
+  const n = makeNumber(x);
+  if (n != x) {
+    // non-empty non-number string
+    // non-empty array
+    // object
+    // undefined
+    // null
+    return undefined;
+  }
+
+  if (getType(x) === 'array' || x === '') {
+    // the cases where we get false zeros
+    return undefined;
+  }
+
+  return n;
+};
+
+/*
  * Returns the creationDate for LaunchDarkly event
  * depending on time settings configured.
  *
@@ -672,10 +701,10 @@ const ldEvent = {
 };
 
 if (data.metricType === 'metric') {
-  const metricValue = getEventData(data.metricValueCustom);
-  if (getType(metricValue) !== 'number') {
+  const metricValue = safeMakeNumber(getEventData(data.metricValueCustom));
+  if (metricValue === undefined) {
     return fail(loggingEnabled, stdLogInfo, {
-      msg: 'Metric Value must be a number.',
+      msg: 'Metric Value must correspond to a number.',
     });
   }
 
@@ -1475,7 +1504,7 @@ scenarios:
       metricType: 'metric',
       clientSideId: '1234',
       companyName: 'Snowplow',
-      metricValueCustom: 'x-sp-br_colordepth', // string
+      metricValueCustom: 'client_id',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
@@ -1519,7 +1548,7 @@ scenarios:
       Type: 'Message',
       TraceId: 'test_trace_id',
       EventName: mockEvent.event_name,
-      Message: 'Metric Value must be a number.',
+      Message: 'Metric Value must correspond to a number.',
     });
     assertApi('logToConsole').wasCalledWith(expectedMessageLog);
 setup: |-
