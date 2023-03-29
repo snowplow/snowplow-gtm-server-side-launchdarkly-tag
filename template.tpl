@@ -367,6 +367,21 @@ const doLogging = (typeName, stdInfo, logInfo) => {
 };
 
 /*
+ * Fails the tag.
+ * If logs are enabled, also logs a message before failing.
+ *
+ * @param logsEnabled {boolean} - whether logs are enabled
+ * @param stdInfo {Object} - the standard info for all logs (Name, Type, TraceId, EventName)
+ * @param logInfo {Object} - an object including information for the Message
+ */
+const fail = (logsEnabled, stdInfo, logInfo) => {
+  if (logsEnabled) {
+    doLogging('Message', stdInfo, logInfo);
+  }
+  return data.gtmOnFailure();
+};
+
+/*
  * Determines whether the event is a snowplow enriched event
  * based on the request path.
  *
@@ -657,7 +672,14 @@ const ldEvent = {
 };
 
 if (data.metricType === 'metric') {
-  ldEvent.metricValue = makeNumber(getEventData(data.metricValueCustom));
+  const metricValue = getEventData(data.metricValueCustom);
+  if (getType(metricValue) !== 'number') {
+    return fail(loggingEnabled, stdLogInfo, {
+      msg: 'Metric Value must be a number.',
+    });
+  }
+
+  ldEvent.metricValue = metricValue;
 }
 
 const ldRequest = [cleanObject(ldEvent)];
@@ -1446,6 +1468,60 @@ scenarios:
     assertApi('logToConsole').wasCalled();
     assertApi('logToConsole').wasCalledWith(expectedRequestLog);
     assertApi('logToConsole').wasCalledWith(expectedResponseLog);
+- name: Test failing when metric value is not a number
+  code: |
+    const mockData = {
+      eventName: 'Example',
+      metricType: 'metric',
+      clientSideId: '1234',
+      companyName: 'Snowplow',
+      metricValueCustom: 'x-sp-br_colordepth', // string
+      userValueDropDown: 'custom',
+      userValueCustom: 'x-sp-event_id',
+      timeOption: 'eventProperty',
+      timeProp: 'x-sp-dvce_created_tstamp',
+      version: '123',
+      logType: 'debug',
+    };
+
+    const mockEvent = mockEventObjectSelfDesc;
+
+    // mocks
+    mock('getAllEventData', mockEvent);
+    mock('getEventData', function (x) {
+      return getFromPath(x, mockEvent);
+    });
+    // to also test trace-id header appears in logs
+    mock('getRequestHeader', function (header) {
+      if (header === 'trace-id') {
+        return 'test_trace_id';
+      }
+      return 'not_allowed';
+    });
+    mock('getContainerVersion', function () {
+      let containerVersion = {
+        debugMode: true,
+        previewMode: true,
+      };
+      return containerVersion;
+    });
+
+    // Call runCode to run the template's code
+    runCode(mockData);
+
+    // Assert
+    assertApi('sendHttpRequest').wasNotCalled();
+    assertApi('gtmOnFailure').wasCalled();
+    assertApi('logToConsole').wasCalled();
+
+    const expectedMessageLog = json.stringify({
+      Name: 'LaunchDarkly Metric Events',
+      Type: 'Message',
+      TraceId: 'test_trace_id',
+      EventName: mockEvent.event_name,
+      Message: 'Metric Value must be a number.',
+    });
+    assertApi('logToConsole').wasCalledWith(expectedMessageLog);
 setup: |-
   const json = require('JSON');
   const logToConsole = require('logToConsole');
