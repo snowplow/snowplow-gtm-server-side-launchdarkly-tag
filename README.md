@@ -1,4 +1,3 @@
-@@ -0,0 +1,95 @@
 # Snowplow LaunchDarkly Tag for Google Tag Manager Server-side
 
 [![early-release]][tracker-classification]
@@ -13,7 +12,7 @@
 
 A Google Tag Manager Server-side LaunchDarkly Tag template for sending events from the Snowplow Client (and other GTM SS Clients) to LaunchDarkly.
 
-This Tag allows you to forward events in your Google Tag Manager Server container to LaunchDarkly.
+This Tag allows you to forward events in your Google Tag Manager Server container to LaunchDarkly using its [metric import REST API][launchdarkly-metric-import].
 
 **Works best with the [Snowplow Client][snowplow-client].**
 
@@ -25,10 +24,7 @@ This Tag reads event data from the "Common Event Data" specified in the [Google 
 
 ### Installing from the Google Tag Manager Gallery
 
-1. From the Templates tab in GTM Server Side, click “Search Gallery” in the Tag Templates section
-2. Search for “LaunchDarkly” and select the official “By Snowplow” tag
-3. Click Add to Workspace
-4. Accept the permissions dialog by clicking “Add”
+Coming soon!
 
 ### Manual Installation
 
@@ -83,9 +79,9 @@ limitations under the License.
 [snowplow]: https://github.com/snowplow/snowplow
 [discourse]: https://discourse.snowplow.io
 
-[techdocs]: https://docs.snowplow.io/docs/forwarding-events-to-destinations/forwarding-events/google-tag-manager-server-side/launchdarkly-tag-for-gtm-ss/launchdarkly-tag-configuration/
+[techdocs]: https://docs.snowplow.io/docs/destinations/forwarding-events/google-tag-manager-server-side/launchdarkly-tag-for-gtm-ss/launchdarkly-tag-configuration/
 [techdocs-image]: https://d3i6fms1cm1j0i.cloudfront.net/github/images/techdocs.png
-[setup]: https://docs.snowplow.io/docs/forwarding-events-to-destinations/forwarding-events/google-tag-manager-server-side/launchdarkly-tag-for-gtm-ss/
+[setup]: https://docs.snowplow.io/docs/destinations/forwarding-events/google-tag-manager-server-side/launchdarkly-tag-for-gtm-ss/
 [setup-image]: https://d3i6fms1cm1j0i.cloudfront.net/github/images/setup.png
 
 [contributing-image]: https://d3i6fms1cm1j0i.cloudfront.net/github/images/contributing.png
@@ -94,3 +90,4 @@ limitations under the License.
 [snowplow-client]: https://github.com/snowplow/snowplow-gtm-server-side-client/
 [javascript-tracker]: https://github.com/snowplow/snowplow-javascript-tracker
 [gtm-event-docs]: https://developers.google.com/tag-manager/serverside/common-event-data
+[launchdarkly-metric-import]: https://docs.launchdarkly.com/home/creating-experiments/import-metric-events
