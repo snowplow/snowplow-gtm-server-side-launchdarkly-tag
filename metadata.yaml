@@ -2,6 +2,8 @@ homepage: "https://www.snowplow.io"
 documentation: "https://docs.snowplow.io/docs/destinations/forwarding-events/google-tag-manager-server-side/launchdarkly-tag-for-gtm-ss"
 versions:
   # Latest version
+  - sha: afb03b1ba8b2b2d4ba7bccf6dda7fe6a93f310d6
+    changeNotes: Hardcode company name in User-Agent (#4)
+  # Older versions
   - sha: dcee94dc283fa0c4d0970c39959f507114e38cbe
     changeNotes: Initial Version
-  # Older versions
