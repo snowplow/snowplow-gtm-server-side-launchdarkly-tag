@@ -78,18 +78,6 @@ ___TEMPLATE_PARAMETERS___
         ],
         "alwaysInSummary": false,
         "help": "The client-side ID for the environment your metric events pertain to."
-      },
-      {
-        "type": "TEXT",
-        "name": "companyName",
-        "displayName": "Company Name",
-        "simpleValueType": true,
-        "help": "Used to help LaunchDarkly identify the source of traffic and debug issues.",
-        "valueValidators": [
-          {
-            "type": "NON_EMPTY"
-          }
-        ]
       }
     ]
   },
@@ -684,7 +672,7 @@ const requestOptions = {
     'X-LaunchDarkly-Event-Schema': 4,
     'LD-API-Version': 'beta',
     'X-LaunchDarkly-Payload-ID': insertId,
-    'User-Agent': 'MetricImport-' + data.companyName + '-int/' + version,
+    'User-Agent': 'MetricImport-Snowplow-int/' + version,
   },
   method: 'POST',
   timeout: 5000,
@@ -916,7 +904,6 @@ scenarios:
       eventName: 'Example',
       metricType: 'conversion',
       clientSideId: '1234',
-      companyName: 'Snowplow',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
@@ -999,7 +986,6 @@ scenarios:
       eventName: 'Example',
       metricType: 'metric',
       clientSideId: '1234',
-      companyName: 'Snowplow',
       metricValueCustom: 'x-sp-br_viewwidth',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
@@ -1084,7 +1070,6 @@ scenarios:
       eventName: 'test',
       metricType: 'conversion',
       clientSideId: '1234',
-      companyName: 'acme',
       userValueDropDown: 'userId',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_sent_tstamp',
@@ -1110,7 +1095,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-acme-int/1',
+      'User-Agent': 'MetricImport-Snowplow-int/1',
     };
 
     // to assert on
@@ -1168,7 +1153,6 @@ scenarios:
       eventName: 'test',
       metricType: 'metric',
       clientSideId: '1234',
-      companyName: 'acme',
       metricValueCustom:
         'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1.0.currentTime',
       userValueDropDown: 'custom',
@@ -1202,7 +1186,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-acme-int/123',
+      'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/1234/metrics';
@@ -1281,7 +1265,6 @@ scenarios:
       eventName: 'test',
       metricType: 'metric',
       clientSideId: '1234',
-      companyName: 'acme',
       metricValueCustom:
         'x-sp-self_describing_event_com_snowplowanalytics_snowplow_add_to_cart_1.quantity',
       userValueDropDown: 'userId',
@@ -1315,7 +1298,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
-      'User-Agent': 'MetricImport-acme-int/123',
+      'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/1234/metrics';
@@ -1394,7 +1377,6 @@ scenarios:
       eventName: 'test',
       metricType: 'conversion',
       clientSideId: 'abcd',
-      companyName: 'testAcme',
       userValueDropDown: 'custom',
       userValueCustom: 'client_id',
       timeOption: 'current',
@@ -1422,7 +1404,7 @@ scenarios:
       'X-LaunchDarkly-Event-Schema': 4,
       'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockSha256,
-      'User-Agent': 'MetricImport-testAcme-int/123',
+      'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
       'https://events.launchdarkly.com/import/environments/abcd/metrics';
@@ -1503,7 +1485,6 @@ scenarios:
       eventName: 'Example',
       metricType: 'metric',
       clientSideId: '1234',
-      companyName: 'Snowplow',
       metricValueCustom: 'client_id',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
