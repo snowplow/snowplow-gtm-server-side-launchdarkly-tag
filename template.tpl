@@ -146,48 +146,99 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
-    "name": "userMapping",
-    "displayName": "User Options",
+    "name": "contextKeys",
+    "displayName": "Context Keys",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "SELECT",
-        "name": "userValueDropDown",
-        "displayName": "User Value",
-        "macrosInSelect": false,
-        "selectItems": [
+        "type": "GROUP",
+        "name": "userMapping",
+        "displayName": "User Options",
+        "groupStyle": "ZIPPY_CLOSED",
+        "subParams": [
           {
-            "value": "userId",
-            "displayValue": "Common User ID"
+            "type": "SELECT",
+            "name": "userValueDropDown",
+            "displayName": "User Value",
+            "macrosInSelect": false,
+            "selectItems": [
+              {
+                "value": "userId",
+                "displayValue": "Common User ID"
+              },
+              {
+                "value": "custom",
+                "displayValue": "Custom"
+              },
+              {
+                "value": "noUser",
+                "displayValue": "Do not populate"
+              }
+            ],
+            "simpleValueType": true,
+            "help": "Pick from the GTM common user properties, select \"Custom\" for any property on the event or choose to not populate `user` as a randomization unit.",
+            "defaultValue": "userId"
           },
           {
-            "value": "custom",
-            "displayValue": "Custom"
+            "type": "TEXT",
+            "name": "userValueCustom",
+            "displayName": "Event property for user context key",
+            "simpleValueType": true,
+            "help": "Specify the Property Key from the GTM Event. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). This key will populate the value of the user property that uniquely identifies the context that the LaunchDarkly metric is about.",
+            "valueValidators": [
+              {
+                "type": "NON_EMPTY"
+              }
+            ],
+            "enablingConditions": [
+              {
+                "paramName": "userValueDropDown",
+                "paramValue": "custom",
+                "type": "EQUALS"
+              }
+            ],
+            "alwaysInSummary": true
           }
-        ],
-        "simpleValueType": true,
-        "help": "Pick from the GTM common user properties or select \"Custom\" for any property on the event.",
-        "defaultValue": "userId"
+        ]
       },
       {
-        "type": "TEXT",
-        "name": "userValueCustom",
-        "displayName": "Event property for user context key",
-        "simpleValueType": true,
-        "help": "Specify the Property Key from the GTM Event. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). This key will populate the value of the user property that uniquely identifies the context that the LaunchDarkly metric is about.",
-        "valueValidators": [
+        "type": "GROUP",
+        "name": "otherRandomizationUnits",
+        "displayName": "Other Context Keys",
+        "groupStyle": "ZIPPY_CLOSED",
+        "subParams": [
           {
-            "type": "NON_EMPTY"
+            "type": "SIMPLE_TABLE",
+            "name": "addContextKeys",
+            "displayName": "Context Keys to Add",
+            "simpleTableColumns": [
+              {
+                "defaultValue": "",
+                "displayName": "Key",
+                "name": "key",
+                "type": "TEXT",
+                "isUnique": true,
+                "valueValidators": [
+                  {
+                    "type": "NON_EMPTY"
+                  }
+                ]
+              },
+              {
+                "defaultValue": "",
+                "displayName": "Value",
+                "name": "value",
+                "type": "TEXT",
+                "valueValidators": [
+                  {
+                    "type": "NON_EMPTY"
+                  }
+                ]
+              }
+            ],
+            "help": "Use this table to add context keys depending on your experiment\u0027s randomization units."
           }
-        ],
-        "enablingConditions": [
-          {
-            "paramName": "userValueDropDown",
-            "paramValue": "custom",
-            "type": "EQUALS"
-          }
-        ],
-        "alwaysInSummary": true
+        ]
       }
     ]
   },
@@ -305,6 +356,7 @@ const JSON = require('JSON');
 const log = require('logToConsole');
 const makeNumber = require('makeNumber');
 const makeString = require('makeString');
+const makeTableMap = require('makeTableMap');
 const Math = require('Math');
 const sendHttpRequest = require('sendHttpRequest');
 const sha256Sync = require('sha256Sync');
@@ -693,6 +745,38 @@ const getVersion = (tagConfig) => {
   return fallbackVersion;
 };
 
+/**
+ * Returns the value to use for user context key.
+ *
+ * @param {Object} evData - The common event data object
+ * @param {Object} tagConfig - The tag configuration
+ * @returns {*}
+ */
+const populateUser = (evData, tagConfig) => {
+  switch (tagConfig.userValueDropDown) {
+    case 'custom':
+      return getEventData(tagConfig.userValueCustom);
+    case 'noUser':
+      return undefined;
+    default:
+      return evData.user_id;
+  }
+};
+
+/**
+ * Populates the context keys based on the tag configuration
+ *
+ * @param {Object} evData - The common event data object
+ * @param {Object} tagConfig - The tag configuration
+ * @returns {Object}
+ */
+const populateContextKeys = (evData, tagConfig) => {
+  const confKeys = tagConfig.addContextKeys || [];
+  const userKey = [{ key: 'user', value: populateUser(evData, tagConfig) }];
+  const ctxKeys = makeTableMap(confKeys.concat(userKey), 'key', 'value');
+  return cleanObject(ctxKeys);
+};
+
 // Main
 const eventData = getAllEventData();
 const insertId =
@@ -715,10 +799,7 @@ const ldEvent = {
   kind: 'custom',
   key: data.eventName,
   creationDate: getTimestamp(data),
-  contextKeys: {
-    user:
-      data.userValueDropDown === 'userId' ? eventData.user_id : getEventData(data.userValueCustom),
-  },
+  contextKeys: populateContextKeys(eventData, data),
 };
 
 if (data.metricType === 'metric') {
@@ -1601,6 +1682,91 @@ scenarios:
       Message: 'Metric Value must correspond to a number.',
     });
     assertApi('logToConsole').wasCalledWith(expectedMessageLog);
+- name: Test context keys
+  code: |
+    const mockData = {
+      eventName: 'Example',
+      metricType: 'conversion',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
+      userValueDropDown: 'noUser',
+      addContextKeys: [{ key: 'aKey', value: 'aValue' }],
+      timeOption: 'eventProperty',
+      timeProp: 'x-sp-dvce_created_tstamp',
+      version: '123',
+      logType: 'no',
+    };
+
+    const mockEvent = mockEventObjectSelfDesc;
+
+    // expectations
+    const expectedBody = [
+      {
+        kind: 'custom',
+        key: 'Example',
+        creationDate: makeNum(mockEvent['x-sp-dvce_created_tstamp']),
+        contextKeys: { aKey: 'aValue' },
+      },
+    ];
+    const expectedHeaders = {
+      Authorization: 'atoken',
+      'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
+      'X-LaunchDarkly-Event-Schema': 4,
+      'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
+      'User-Agent': 'MetricImport-Snowplow-int/123',
+    };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
+
+    // to assert on
+    let argUrl, argCallback, argOptions, argBody;
+
+    // mocks
+    mock('getAllEventData', mockEvent);
+    mock('getEventData', function (x) {
+      return getFromPath(x, mockEvent);
+    });
+    mock('sendHttpRequest', function () {
+      argUrl = arguments[0];
+      argCallback = arguments[1];
+      argOptions = arguments[2];
+      argBody = arguments[3];
+
+      // mock response
+      const respStatusCode = mockResponseCode;
+      const respHeaders = mockResponseHeaders;
+      const respBody = mockResponseBody;
+
+      // and call the callback with mock response
+      argCallback(respStatusCode, respHeaders, respBody);
+    });
+    mock('getContainerVersion', function () {
+      // Test also logType: 'no' does not log on prod
+      let containerVersion = {
+        debugMode: false,
+        previewMode: false,
+      };
+      return containerVersion;
+    });
+
+    // Call runCode to run the template's code
+    runCode(mockData);
+
+    // Assert
+    assertApi('sendHttpRequest').wasCalled();
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
+
+    assertThat(argOptions.method).isStrictlyEqualTo('POST');
+    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
+
+    assertThat(argOptions.headers).isEqualTo(expectedHeaders);
+
+    const body = json.parse(argBody);
+    assertThat(body).isEqualTo(expectedBody);
+
+    assertApi('logToConsole').wasNotCalled();
 setup: |-
   const createRegex = require('createRegex');
   const encodeUriComponent = require('encodeUriComponent');
