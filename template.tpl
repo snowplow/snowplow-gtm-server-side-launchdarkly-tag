@@ -64,20 +64,54 @@ ___TEMPLATE_PARAMETERS___
     "type": "GROUP",
     "name": "Authentication",
     "displayName": "Authentication",
-    "groupStyle": "ZIPPY_OPEN_ON_PARAM",
+    "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
         "type": "TEXT",
-        "name": "clientSideId",
-        "displayName": "Client Side ID",
+        "name": "projectKey",
+        "displayName": "Project Key",
         "simpleValueType": true,
         "valueValidators": [
           {
             "type": "NON_EMPTY"
           }
         ],
+        "help": "The key for the project your metric events pertain to. You can find it under Environments on the Projects tab on your LaunchDarkly Account settings page.",
+        "alwaysInSummary": false
+      },
+      {
+        "type": "TEXT",
+        "name": "envKey",
+        "displayName": "Environment Key",
+        "simpleValueType": true,
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ],
+        "help": "The key for the environment your metric events pertain to. You can find it under Environments on the Projects tab on your LaunchDarkly Account settings page.",
+        "alwaysInSummary": false
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
+    "name": "Authorization",
+    "displayName": "Authorization",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
+      {
+        "type": "TEXT",
+        "name": "accessToken",
+        "displayName": "Access Token",
+        "simpleValueType": true,
         "alwaysInSummary": false,
-        "help": "The client-side ID for the environment your metric events pertain to."
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ],
+        "help": "This can be either a personal or service token. The access token must have a role that allows the \u003cstrong\u003eimportEventData\u003c/strong\u003e action. It is strongly recommended to use a dedicated access token with this permission."
       }
     ]
   },
@@ -258,6 +292,8 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
+const createRegex = require('createRegex');
+const encodeUriComponent = require('encodeUriComponent');
 const getAllEventData = require('getAllEventData');
 const getContainerVersion = require('getContainerVersion');
 const getEventData = require('getEventData');
@@ -274,7 +310,8 @@ const sendHttpRequest = require('sendHttpRequest');
 const sha256Sync = require('sha256Sync');
 
 // Constants
-const standardEndpoint = 'https://events.launchdarkly.com';
+const standardEndpoint =
+  'https://events.launchdarkly.com/v2/event-data-import/';
 const tagName = 'LaunchDarkly Metric Events';
 const spEnrichedPath = '/com.snowplowanalytics.snowplow/enriched';
 const spAtomicTstamps = [
@@ -633,6 +670,18 @@ const getTimestamp = (tagConfig) => {
   }
 };
 
+/**
+ * This function returns the byte size of a UTF-8 string.
+ * https://gist.github.com/mathiasbynens/1010324
+ *
+ * @param {string} s - The string to count the bytes of
+ * @returns {number} Size of s in bytes
+ */
+function byteCount(s) {
+  const rexp = createRegex('%[A-F0-9]{2}', 'g');
+  return encodeUriComponent(s).replace(rexp, 'x').length;
+}
+
 const getVersion = (tagConfig) => {
   const fallbackVersion = '1';
   const version = tagConfig.version;
@@ -659,24 +708,6 @@ const stdLogInfo = {
   traceId: traceIdHeader,
   eventName: eventData.event_name,
 };
-const url =
-  standardEndpoint + '/import/environments/' + data.clientSideId + '/metrics';
-
-// Note on version by LaunchDarkly docs: can be any format,
-// but you should update it if you make major changes to your implementation.
-// For now we hardcode it to '1'.
-const version = getVersion(data);
-const requestOptions = {
-  headers: {
-    'Content-Type': 'application/json',
-    'X-LaunchDarkly-Event-Schema': 4,
-    'LD-API-Version': 'beta',
-    'X-LaunchDarkly-Payload-ID': insertId,
-    'User-Agent': 'MetricImport-Snowplow-int/' + version,
-  },
-  method: 'POST',
-  timeout: 5000,
-};
 
 const ldEvent = {
   kind: 'custom',
@@ -700,6 +731,22 @@ if (data.metricType === 'metric') {
 }
 
 const ldRequest = [cleanObject(ldEvent)];
+const requestBody = JSON.stringify(ldRequest);
+
+const url = standardEndpoint + [data.projectKey, data.envKey].join('/');
+
+const requestOptions = {
+  headers: {
+    Authorization: data.accessToken,
+    'Content-Type': 'application/json',
+    'Content-Length': byteCount(requestBody),
+    'X-LaunchDarkly-Event-Schema': 4,
+    'X-LaunchDarkly-Payload-ID': insertId,
+    'User-Agent': 'MetricImport-Snowplow-int/' + getVersion(data),
+  },
+  method: 'POST',
+  timeout: 5000,
+};
 
 if (loggingEnabled) {
   doLogging('Request', stdLogInfo, {
@@ -728,7 +775,7 @@ sendHttpRequest(
     }
   },
   requestOptions,
-  JSON.stringify(ldRequest)
+  requestBody
 );
 
 
@@ -903,7 +950,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'conversion',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
@@ -924,12 +973,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -967,9 +1019,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -985,7 +1035,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom: 'x-sp-br_viewwidth',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
@@ -1008,12 +1060,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/1',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -1051,9 +1106,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -1069,7 +1122,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'conversion',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'userId',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_sent_tstamp',
@@ -1091,12 +1146,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/1',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -1134,9 +1192,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -1152,7 +1208,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom:
         'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1.0.currentTime',
       userValueDropDown: 'custom',
@@ -1182,14 +1240,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/1234/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1264,7 +1323,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom:
         'x-sp-self_describing_event_com_snowplowanalytics_snowplow_add_to_cart_1.quantity',
       userValueDropDown: 'userId',
@@ -1294,14 +1355,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/1234/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1376,7 +1438,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'conversion',
-      clientSideId: 'abcd',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'custom',
       userValueCustom: 'client_id',
       timeOption: 'current',
@@ -1400,14 +1464,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockSha256,
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/abcd/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1484,7 +1549,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom: 'client_id',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
@@ -1532,7 +1599,9 @@ scenarios:
       Message: 'Metric Value must correspond to a number.',
     });
     assertApi('logToConsole').wasCalledWith(expectedMessageLog);
-setup: |-
+setup: |
+  const createRegex = require('createRegex');
+  const encodeUriComponent = require('encodeUriComponent');
   const json = require('JSON');
   const logToConsole = require('logToConsole');
   const getTypeOf = require('getType');
@@ -1818,6 +1887,10 @@ setup: |-
   const mockResponseCode = 200;
   const mockResponseHeaders = { foo: 'bar' };
   const mockResponseBody = 'ok';
+  function byteCountMock(s) {
+    const rexp = createRegex('%[A-F0-9]{2}', 'g');
+    return encodeUriComponent(s).replace(rexp, 'x').length;
+  }
 
 
 ___NOTES___
