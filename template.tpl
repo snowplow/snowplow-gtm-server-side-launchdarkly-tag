@@ -326,12 +326,12 @@ const spAtomicTstamps = [
 
 // Helpers
 
-/*
+/**
  * Assumes logType argument is string.
  * Determines if logging is enabled.
  *
- * @param logType {string} - the logType set ('no', 'debug', 'always')
- * @returns - whether logging is enabled (boolean)
+ * @param {string} logType - The logType set ('no', 'debug', 'always')
+ * @returns {boolean} - Whether logging is enabled
  */
 const determineIsLoggingEnabled = (logType) => {
   const containerVersion = getContainerVersion();
@@ -353,12 +353,12 @@ const determineIsLoggingEnabled = (logType) => {
   return data.logType === 'always';
 };
 
-/*
+/**
  * Creates the log message and logs it to console.
  *
- * @param typeName {string} - the type of log ('Message', 'Request', 'Response')
- * @param stdInfo {Object} - the standard info for all logs (Name, Type, TraceId, EventName)
- * @param logInfo {Object} - an object including information for the specific log type
+ * @param {string} typeName - The type of log ('Message', 'Request', 'Response')
+ * @param {Object} stdInfo - The standard info for all logs (Name, Type, TraceId, EventName)
+ * @param {Object} logInfo - An object including information for the specific log type
  */
 const doLogging = (typeName, stdInfo, logInfo) => {
   const logMessage = {
@@ -391,13 +391,13 @@ const doLogging = (typeName, stdInfo, logInfo) => {
   log(JSON.stringify(logMessage));
 };
 
-/*
+/**
  * Fails the tag.
  * If logs are enabled, also logs a message before failing.
  *
- * @param logsEnabled {boolean} - whether logs are enabled
- * @param stdInfo {Object} - the standard info for all logs (Name, Type, TraceId, EventName)
- * @param logInfo {Object} - an object including information for the Message
+ * @param {boolean} logsEnabled - Whether logs are enabled
+ * @param {Object} stdInfo - The standard info for all logs (Name, Type, TraceId, EventName)
+ * @param {Object} logInfo - An object including information for the Message
  */
 const fail = (logsEnabled, stdInfo, logInfo) => {
   if (logsEnabled) {
@@ -406,11 +406,11 @@ const fail = (logsEnabled, stdInfo, logInfo) => {
   return data.gtmOnFailure();
 };
 
-/*
+/**
  * Determines whether the event is a snowplow enriched event
  * based on the request path.
  *
- * @returns - boolean
+ * @returns {boolean}
  */
 const isSpEnrichedEvent = () => {
   const requestPath = getRequestPath();
@@ -420,11 +420,11 @@ const isSpEnrichedEvent = () => {
   return false;
 };
 
-/*
+/**
  * Determines if a property of the client event object
  * is a Snowplow enriched timestamp.
  *
- * @returns - boolean
+ * @returns {boolean}
  */
 const isSpTstampProp = (propName) => {
   if (spAtomicTstamps.indexOf(propName) >= 0) {
@@ -433,15 +433,15 @@ const isSpTstampProp = (propName) => {
   return false;
 };
 
-/*
+/**
  * Determines whether its argument is a string formatted
  * per ISO 8601 time representation.
  * No support for timezones except Z.
  * Supported forms: '2022-07-22T23:56:32Z' and '2022-07-22T23:56:32.123Z".
  * Returns an array of the string time parts.
  *
- * @param x {any}
- * @returns Array or undefined
+ * @param {*} x
+ * @returns {(string[]|undefined)}
  */
 function isISOString(x) {
   if (typeof x !== 'string') {
@@ -495,7 +495,7 @@ function isISOString(x) {
   return [year, month, day, hour, min, sec, millis];
 }
 
-/*
+/**
  * Parses an ISO-time string to a time object.
  * Note the differences makeInteger Vs makeNumber:
  *
@@ -517,8 +517,8 @@ function isISOString(x) {
  * logToConsole(makeNumber('foo') === makeNumber('foo')) -> false
  * logToConsole(makeNumber('foo') == makeNumber('foo')) -> false
  *
- * @param isoString {string}
- * @returns - an object with the time parts as numbers
+ * @param {string} isoString
+ * @returns - An object with the time parts as numbers
  */
 function parseISOTime(isoString) {
   const iso = isISOString(isoString);
@@ -561,8 +561,10 @@ function parseISOTime(isoString) {
   };
 }
 
-/*
+/**
  * https://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ *
+ * @returns {(number|undefined)}
  */
 function isoToUnixMillis(isoTime) {
   const iso = parseISOTime(isoTime);
@@ -611,15 +613,15 @@ const cleanObject = (obj) => {
   return target;
 };
 
-/*
+/**
  * A safer replacement to makeNumber.
  * It will return a number only if:
  *  - the input is a number
  *  - the input is a string that can be parsed as a number
  * In all other cases returns undefined.
  *
- * @param x - any argument
- * @returns - a number or undefined
+ * @param {*} x
+ * @returns {(number|undefined)}
  */
 const safeMakeNumber = (x) => {
   const n = makeNumber(x);
@@ -640,12 +642,12 @@ const safeMakeNumber = (x) => {
   return n;
 };
 
-/*
- * Returns the creationDate for LaunchDarkly event
+/**
+ * Returns the creationDate (unix timestamp) for LaunchDarkly event
  * depending on time settings configured.
  *
- * @param tagConfig {Object} - the tag configuration object
- * @returns - unix timestamp or undefined
+ * @param {Object} tagConfig - The tag configuration object
+ * @returns {(number|undefined)}
  */
 const getTimestamp = (tagConfig) => {
   const timeSetting = tagConfig.timeOption;
@@ -1599,7 +1601,7 @@ scenarios:
       Message: 'Metric Value must correspond to a number.',
     });
     assertApi('logToConsole').wasCalledWith(expectedMessageLog);
-setup: |
+setup: |-
   const createRegex = require('createRegex');
   const encodeUriComponent = require('encodeUriComponent');
   const json = require('JSON');
