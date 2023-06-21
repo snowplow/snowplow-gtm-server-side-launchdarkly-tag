@@ -64,20 +64,54 @@ ___TEMPLATE_PARAMETERS___
     "type": "GROUP",
     "name": "Authentication",
     "displayName": "Authentication",
-    "groupStyle": "ZIPPY_OPEN_ON_PARAM",
+    "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
         "type": "TEXT",
-        "name": "clientSideId",
-        "displayName": "Client Side ID",
+        "name": "projectKey",
+        "displayName": "Project Key",
         "simpleValueType": true,
         "valueValidators": [
           {
             "type": "NON_EMPTY"
           }
         ],
+        "help": "The key for the project your metric events pertain to. You can find it under Environments on the Projects tab on your LaunchDarkly Account settings page.",
+        "alwaysInSummary": false
+      },
+      {
+        "type": "TEXT",
+        "name": "envKey",
+        "displayName": "Environment Key",
+        "simpleValueType": true,
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ],
+        "help": "The key for the environment your metric events pertain to. You can find it under Environments on the Projects tab on your LaunchDarkly Account settings page.",
+        "alwaysInSummary": false
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
+    "name": "Authorization",
+    "displayName": "Authorization",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
+      {
+        "type": "TEXT",
+        "name": "accessToken",
+        "displayName": "Access Token",
+        "simpleValueType": true,
         "alwaysInSummary": false,
-        "help": "The client-side ID for the environment your metric events pertain to."
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ],
+        "help": "This can be either a personal or service token. The access token must have a role that allows the \u003cstrong\u003eimportEventData\u003c/strong\u003e action. It is strongly recommended to use a dedicated access token with this permission."
       }
     ]
   },
@@ -112,48 +146,99 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "GROUP",
-    "name": "userMapping",
-    "displayName": "User Options",
+    "name": "contextKeys",
+    "displayName": "Context Keys",
     "groupStyle": "ZIPPY_CLOSED",
     "subParams": [
       {
-        "type": "SELECT",
-        "name": "userValueDropDown",
-        "displayName": "User Value",
-        "macrosInSelect": false,
-        "selectItems": [
+        "type": "GROUP",
+        "name": "userMapping",
+        "displayName": "User Options",
+        "groupStyle": "ZIPPY_CLOSED",
+        "subParams": [
           {
-            "value": "userId",
-            "displayValue": "Common User ID"
+            "type": "SELECT",
+            "name": "userValueDropDown",
+            "displayName": "User Value",
+            "macrosInSelect": false,
+            "selectItems": [
+              {
+                "value": "userId",
+                "displayValue": "Common User ID"
+              },
+              {
+                "value": "custom",
+                "displayValue": "Custom"
+              },
+              {
+                "value": "noUser",
+                "displayValue": "Do not populate"
+              }
+            ],
+            "simpleValueType": true,
+            "help": "Pick from the GTM common user properties, select \"Custom\" for any property on the event or choose to not populate `user` as a randomization unit.",
+            "defaultValue": "userId"
           },
           {
-            "value": "custom",
-            "displayValue": "Custom"
+            "type": "TEXT",
+            "name": "userValueCustom",
+            "displayName": "Event property for user context key",
+            "simpleValueType": true,
+            "help": "Specify the Property Key from the GTM Event. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). This key will populate the value of the user property that uniquely identifies the context that the LaunchDarkly metric is about.",
+            "valueValidators": [
+              {
+                "type": "NON_EMPTY"
+              }
+            ],
+            "enablingConditions": [
+              {
+                "paramName": "userValueDropDown",
+                "paramValue": "custom",
+                "type": "EQUALS"
+              }
+            ],
+            "alwaysInSummary": true
           }
-        ],
-        "simpleValueType": true,
-        "help": "Pick from the GTM common user properties or select \"Custom\" for any property on the event.",
-        "defaultValue": "userId"
+        ]
       },
       {
-        "type": "TEXT",
-        "name": "userValueCustom",
-        "displayName": "Event property for user context key",
-        "simpleValueType": true,
-        "help": "Specify the Property Key from the GTM Event. You can use Key Path notation here (e.g. `x-sp-tp2.p` for a Snowplow events platform or `x-sp-contexts.com_snowplowanalytics_snowplow_web_page_1.0.id` for a Snowplow events page view id (in array index 0). This key will populate the value of the user property that uniquely identifies the context that the LaunchDarkly metric is about.",
-        "valueValidators": [
+        "type": "GROUP",
+        "name": "otherRandomizationUnits",
+        "displayName": "Other Context Keys",
+        "groupStyle": "ZIPPY_CLOSED",
+        "subParams": [
           {
-            "type": "NON_EMPTY"
+            "type": "SIMPLE_TABLE",
+            "name": "addContextKeys",
+            "displayName": "Context Keys to Add",
+            "simpleTableColumns": [
+              {
+                "defaultValue": "",
+                "displayName": "Key",
+                "name": "key",
+                "type": "TEXT",
+                "isUnique": true,
+                "valueValidators": [
+                  {
+                    "type": "NON_EMPTY"
+                  }
+                ]
+              },
+              {
+                "defaultValue": "",
+                "displayName": "Value",
+                "name": "value",
+                "type": "TEXT",
+                "valueValidators": [
+                  {
+                    "type": "NON_EMPTY"
+                  }
+                ]
+              }
+            ],
+            "help": "Use this table to add context keys depending on your experiment\u0027s randomization units."
           }
-        ],
-        "enablingConditions": [
-          {
-            "paramName": "userValueDropDown",
-            "paramValue": "custom",
-            "type": "EQUALS"
-          }
-        ],
-        "alwaysInSummary": true
+        ]
       }
     ]
   },
@@ -258,6 +343,8 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
+const createRegex = require('createRegex');
+const encodeUriComponent = require('encodeUriComponent');
 const getAllEventData = require('getAllEventData');
 const getContainerVersion = require('getContainerVersion');
 const getEventData = require('getEventData');
@@ -269,12 +356,14 @@ const JSON = require('JSON');
 const log = require('logToConsole');
 const makeNumber = require('makeNumber');
 const makeString = require('makeString');
+const makeTableMap = require('makeTableMap');
 const Math = require('Math');
 const sendHttpRequest = require('sendHttpRequest');
 const sha256Sync = require('sha256Sync');
 
 // Constants
-const standardEndpoint = 'https://events.launchdarkly.com';
+const standardEndpoint =
+  'https://events.launchdarkly.com/v2/event-data-import/';
 const tagName = 'LaunchDarkly Metric Events';
 const spEnrichedPath = '/com.snowplowanalytics.snowplow/enriched';
 const spAtomicTstamps = [
@@ -289,12 +378,12 @@ const spAtomicTstamps = [
 
 // Helpers
 
-/*
+/**
  * Assumes logType argument is string.
  * Determines if logging is enabled.
  *
- * @param logType {string} - the logType set ('no', 'debug', 'always')
- * @returns - whether logging is enabled (boolean)
+ * @param {string} logType - The logType set ('no', 'debug', 'always')
+ * @returns {boolean} - Whether logging is enabled
  */
 const determineIsLoggingEnabled = (logType) => {
   const containerVersion = getContainerVersion();
@@ -316,12 +405,12 @@ const determineIsLoggingEnabled = (logType) => {
   return data.logType === 'always';
 };
 
-/*
+/**
  * Creates the log message and logs it to console.
  *
- * @param typeName {string} - the type of log ('Message', 'Request', 'Response')
- * @param stdInfo {Object} - the standard info for all logs (Name, Type, TraceId, EventName)
- * @param logInfo {Object} - an object including information for the specific log type
+ * @param {string} typeName - The type of log ('Message', 'Request', 'Response')
+ * @param {Object} stdInfo - The standard info for all logs (Name, Type, TraceId, EventName)
+ * @param {Object} logInfo - An object including information for the specific log type
  */
 const doLogging = (typeName, stdInfo, logInfo) => {
   const logMessage = {
@@ -354,13 +443,13 @@ const doLogging = (typeName, stdInfo, logInfo) => {
   log(JSON.stringify(logMessage));
 };
 
-/*
+/**
  * Fails the tag.
  * If logs are enabled, also logs a message before failing.
  *
- * @param logsEnabled {boolean} - whether logs are enabled
- * @param stdInfo {Object} - the standard info for all logs (Name, Type, TraceId, EventName)
- * @param logInfo {Object} - an object including information for the Message
+ * @param {boolean} logsEnabled - Whether logs are enabled
+ * @param {Object} stdInfo - The standard info for all logs (Name, Type, TraceId, EventName)
+ * @param {Object} logInfo - An object including information for the Message
  */
 const fail = (logsEnabled, stdInfo, logInfo) => {
   if (logsEnabled) {
@@ -369,11 +458,11 @@ const fail = (logsEnabled, stdInfo, logInfo) => {
   return data.gtmOnFailure();
 };
 
-/*
+/**
  * Determines whether the event is a snowplow enriched event
  * based on the request path.
  *
- * @returns - boolean
+ * @returns {boolean}
  */
 const isSpEnrichedEvent = () => {
   const requestPath = getRequestPath();
@@ -383,11 +472,11 @@ const isSpEnrichedEvent = () => {
   return false;
 };
 
-/*
+/**
  * Determines if a property of the client event object
  * is a Snowplow enriched timestamp.
  *
- * @returns - boolean
+ * @returns {boolean}
  */
 const isSpTstampProp = (propName) => {
   if (spAtomicTstamps.indexOf(propName) >= 0) {
@@ -396,15 +485,15 @@ const isSpTstampProp = (propName) => {
   return false;
 };
 
-/*
+/**
  * Determines whether its argument is a string formatted
  * per ISO 8601 time representation.
  * No support for timezones except Z.
  * Supported forms: '2022-07-22T23:56:32Z' and '2022-07-22T23:56:32.123Z".
  * Returns an array of the string time parts.
  *
- * @param x {any}
- * @returns Array or undefined
+ * @param {*} x
+ * @returns {(string[]|undefined)}
  */
 function isISOString(x) {
   if (typeof x !== 'string') {
@@ -458,7 +547,7 @@ function isISOString(x) {
   return [year, month, day, hour, min, sec, millis];
 }
 
-/*
+/**
  * Parses an ISO-time string to a time object.
  * Note the differences makeInteger Vs makeNumber:
  *
@@ -480,8 +569,8 @@ function isISOString(x) {
  * logToConsole(makeNumber('foo') === makeNumber('foo')) -> false
  * logToConsole(makeNumber('foo') == makeNumber('foo')) -> false
  *
- * @param isoString {string}
- * @returns - an object with the time parts as numbers
+ * @param {string} isoString
+ * @returns - An object with the time parts as numbers
  */
 function parseISOTime(isoString) {
   const iso = isISOString(isoString);
@@ -524,8 +613,10 @@ function parseISOTime(isoString) {
   };
 }
 
-/*
+/**
  * https://howardhinnant.github.io/date_algorithms.html#days_from_civil
+ *
+ * @returns {(number|undefined)}
  */
 function isoToUnixMillis(isoTime) {
   const iso = parseISOTime(isoTime);
@@ -574,15 +665,15 @@ const cleanObject = (obj) => {
   return target;
 };
 
-/*
+/**
  * A safer replacement to makeNumber.
  * It will return a number only if:
  *  - the input is a number
  *  - the input is a string that can be parsed as a number
  * In all other cases returns undefined.
  *
- * @param x - any argument
- * @returns - a number or undefined
+ * @param {*} x
+ * @returns {(number|undefined)}
  */
 const safeMakeNumber = (x) => {
   const n = makeNumber(x);
@@ -603,12 +694,12 @@ const safeMakeNumber = (x) => {
   return n;
 };
 
-/*
- * Returns the creationDate for LaunchDarkly event
+/**
+ * Returns the creationDate (unix timestamp) for LaunchDarkly event
  * depending on time settings configured.
  *
- * @param tagConfig {Object} - the tag configuration object
- * @returns - unix timestamp or undefined
+ * @param {Object} tagConfig - The tag configuration object
+ * @returns {(number|undefined)}
  */
 const getTimestamp = (tagConfig) => {
   const timeSetting = tagConfig.timeOption;
@@ -633,6 +724,18 @@ const getTimestamp = (tagConfig) => {
   }
 };
 
+/**
+ * This function returns the byte size of a UTF-8 string.
+ * https://gist.github.com/mathiasbynens/1010324
+ *
+ * @param {string} s - The string to count the bytes of
+ * @returns {number} Size of s in bytes
+ */
+function byteCount(s) {
+  const rexp = createRegex('%[A-F0-9]{2}', 'g');
+  return encodeUriComponent(s).replace(rexp, 'x').length;
+}
+
 const getVersion = (tagConfig) => {
   const fallbackVersion = '1';
   const version = tagConfig.version;
@@ -640,6 +743,38 @@ const getVersion = (tagConfig) => {
     return version;
   }
   return fallbackVersion;
+};
+
+/**
+ * Returns the value to use for user context key.
+ *
+ * @param {Object} evData - The common event data object
+ * @param {Object} tagConfig - The tag configuration
+ * @returns {*}
+ */
+const populateUser = (evData, tagConfig) => {
+  switch (tagConfig.userValueDropDown) {
+    case 'custom':
+      return getEventData(tagConfig.userValueCustom);
+    case 'noUser':
+      return undefined;
+    default:
+      return evData.user_id;
+  }
+};
+
+/**
+ * Populates the context keys based on the tag configuration
+ *
+ * @param {Object} evData - The common event data object
+ * @param {Object} tagConfig - The tag configuration
+ * @returns {Object}
+ */
+const populateContextKeys = (evData, tagConfig) => {
+  const confKeys = tagConfig.addContextKeys || [];
+  const userKey = [{ key: 'user', value: populateUser(evData, tagConfig) }];
+  const ctxKeys = makeTableMap(confKeys.concat(userKey), 'key', 'value');
+  return cleanObject(ctxKeys);
 };
 
 // Main
@@ -659,33 +794,12 @@ const stdLogInfo = {
   traceId: traceIdHeader,
   eventName: eventData.event_name,
 };
-const url =
-  standardEndpoint + '/import/environments/' + data.clientSideId + '/metrics';
-
-// Note on version by LaunchDarkly docs: can be any format,
-// but you should update it if you make major changes to your implementation.
-// For now we hardcode it to '1'.
-const version = getVersion(data);
-const requestOptions = {
-  headers: {
-    'Content-Type': 'application/json',
-    'X-LaunchDarkly-Event-Schema': 4,
-    'LD-API-Version': 'beta',
-    'X-LaunchDarkly-Payload-ID': insertId,
-    'User-Agent': 'MetricImport-Snowplow-int/' + version,
-  },
-  method: 'POST',
-  timeout: 5000,
-};
 
 const ldEvent = {
   kind: 'custom',
   key: data.eventName,
   creationDate: getTimestamp(data),
-  contextKeys: {
-    user:
-      data.userValueDropDown === 'userId' ? eventData.user_id : getEventData(data.userValueCustom),
-  },
+  contextKeys: populateContextKeys(eventData, data),
 };
 
 if (data.metricType === 'metric') {
@@ -700,6 +814,22 @@ if (data.metricType === 'metric') {
 }
 
 const ldRequest = [cleanObject(ldEvent)];
+const requestBody = JSON.stringify(ldRequest);
+
+const url = standardEndpoint + [data.projectKey, data.envKey].join('/');
+
+const requestOptions = {
+  headers: {
+    Authorization: data.accessToken,
+    'Content-Type': 'application/json',
+    'Content-Length': byteCount(requestBody),
+    'X-LaunchDarkly-Event-Schema': 4,
+    'X-LaunchDarkly-Payload-ID': insertId,
+    'User-Agent': 'MetricImport-Snowplow-int/' + getVersion(data),
+  },
+  method: 'POST',
+  timeout: 5000,
+};
 
 if (loggingEnabled) {
   doLogging('Request', stdLogInfo, {
@@ -728,7 +858,7 @@ sendHttpRequest(
     }
   },
   requestOptions,
-  JSON.stringify(ldRequest)
+  requestBody
 );
 
 
@@ -903,7 +1033,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'conversion',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
       timeOption: 'eventProperty',
@@ -924,12 +1056,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -967,9 +1102,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -985,7 +1118,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom: 'x-sp-br_viewwidth',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
@@ -1008,12 +1143,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/1',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -1051,9 +1189,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -1069,7 +1205,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'conversion',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'userId',
       timeOption: 'eventProperty',
       timeProp: 'x-sp-dvce_sent_tstamp',
@@ -1091,12 +1229,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/1',
     };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
 
     // to assert on
     let argUrl, argCallback, argOptions, argBody;
@@ -1134,9 +1275,7 @@ scenarios:
 
     // Assert
     assertApi('sendHttpRequest').wasCalled();
-    assertThat(argUrl).isStrictlyEqualTo(
-      'https://events.launchdarkly.com/import/environments/1234/metrics'
-    );
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
 
     assertThat(argOptions.method).isStrictlyEqualTo('POST');
     assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
@@ -1152,7 +1291,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom:
         'x-sp-contexts_com_snowplowanalytics_snowplow_media_player_1.0.currentTime',
       userValueDropDown: 'custom',
@@ -1182,14 +1323,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/1234/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1264,7 +1406,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom:
         'x-sp-self_describing_event_com_snowplowanalytics_snowplow_add_to_cart_1.quantity',
       userValueDropDown: 'userId',
@@ -1294,14 +1438,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/1234/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1376,7 +1521,9 @@ scenarios:
     const mockData = {
       eventName: 'test',
       metricType: 'conversion',
-      clientSideId: 'abcd',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       userValueDropDown: 'custom',
       userValueCustom: 'client_id',
       timeOption: 'current',
@@ -1400,14 +1547,15 @@ scenarios:
       },
     ];
     const expectedHeaders = {
+      Authorization: 'atoken',
       'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
       'X-LaunchDarkly-Event-Schema': 4,
-      'LD-API-Version': 'beta',
       'X-LaunchDarkly-Payload-ID': mockSha256,
       'User-Agent': 'MetricImport-Snowplow-int/123',
     };
     const expectedUrl =
-      'https://events.launchdarkly.com/import/environments/abcd/metrics';
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
     const expectedRequestLog = json.stringify({
       Name: 'LaunchDarkly Metric Events',
       Type: 'Request',
@@ -1484,7 +1632,9 @@ scenarios:
     const mockData = {
       eventName: 'Example',
       metricType: 'metric',
-      clientSideId: '1234',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
       metricValueCustom: 'client_id',
       userValueDropDown: 'custom',
       userValueCustom: 'x-sp-event_id',
@@ -1532,7 +1682,94 @@ scenarios:
       Message: 'Metric Value must correspond to a number.',
     });
     assertApi('logToConsole').wasCalledWith(expectedMessageLog);
+- name: Test context keys
+  code: |
+    const mockData = {
+      eventName: 'Example',
+      metricType: 'conversion',
+      projectKey: 'pkey',
+      envKey: 'ekey',
+      accessToken: 'atoken',
+      userValueDropDown: 'noUser',
+      addContextKeys: [{ key: 'aKey', value: 'aValue' }],
+      timeOption: 'eventProperty',
+      timeProp: 'x-sp-dvce_created_tstamp',
+      version: '123',
+      logType: 'no',
+    };
+
+    const mockEvent = mockEventObjectSelfDesc;
+
+    // expectations
+    const expectedBody = [
+      {
+        kind: 'custom',
+        key: 'Example',
+        creationDate: makeNum(mockEvent['x-sp-dvce_created_tstamp']),
+        contextKeys: { aKey: 'aValue' },
+      },
+    ];
+    const expectedHeaders = {
+      Authorization: 'atoken',
+      'Content-Type': 'application/json',
+      'Content-Length': byteCountMock(json.stringify(expectedBody)),
+      'X-LaunchDarkly-Event-Schema': 4,
+      'X-LaunchDarkly-Payload-ID': mockEvent['x-sp-event_id'],
+      'User-Agent': 'MetricImport-Snowplow-int/123',
+    };
+    const expectedUrl =
+      'https://events.launchdarkly.com/v2/event-data-import/pkey/ekey';
+
+    // to assert on
+    let argUrl, argCallback, argOptions, argBody;
+
+    // mocks
+    mock('getAllEventData', mockEvent);
+    mock('getEventData', function (x) {
+      return getFromPath(x, mockEvent);
+    });
+    mock('sendHttpRequest', function () {
+      argUrl = arguments[0];
+      argCallback = arguments[1];
+      argOptions = arguments[2];
+      argBody = arguments[3];
+
+      // mock response
+      const respStatusCode = mockResponseCode;
+      const respHeaders = mockResponseHeaders;
+      const respBody = mockResponseBody;
+
+      // and call the callback with mock response
+      argCallback(respStatusCode, respHeaders, respBody);
+    });
+    mock('getContainerVersion', function () {
+      // Test also logType: 'no' does not log on prod
+      let containerVersion = {
+        debugMode: false,
+        previewMode: false,
+      };
+      return containerVersion;
+    });
+
+    // Call runCode to run the template's code
+    runCode(mockData);
+
+    // Assert
+    assertApi('sendHttpRequest').wasCalled();
+    assertThat(argUrl).isStrictlyEqualTo(expectedUrl);
+
+    assertThat(argOptions.method).isStrictlyEqualTo('POST');
+    assertThat(argOptions.timeout).isStrictlyEqualTo(5000);
+
+    assertThat(argOptions.headers).isEqualTo(expectedHeaders);
+
+    const body = json.parse(argBody);
+    assertThat(body).isEqualTo(expectedBody);
+
+    assertApi('logToConsole').wasNotCalled();
 setup: |-
+  const createRegex = require('createRegex');
+  const encodeUriComponent = require('encodeUriComponent');
   const json = require('JSON');
   const logToConsole = require('logToConsole');
   const getTypeOf = require('getType');
@@ -1818,6 +2055,10 @@ setup: |-
   const mockResponseCode = 200;
   const mockResponseHeaders = { foo: 'bar' };
   const mockResponseBody = 'ok';
+  function byteCountMock(s) {
+    const rexp = createRegex('%[A-F0-9]{2}', 'g');
+    return encodeUriComponent(s).replace(rexp, 'x').length;
+  }
 
 
 ___NOTES___
